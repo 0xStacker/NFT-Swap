@@ -166,20 +166,16 @@ contract Swapper{
         if (_from == location.outbox){
             for (uint8 i; i < _cache.length; i++){
                 if (_cache[i].requestId != _requestId){
-                    requesterOutbox[_user].push(_cache[i]);
-            }
-        }
-    }
+                    requesterOutbox[_user].push(_cache[i]);}
+                    }
+                }
         else{
             for (uint8 i; i < _cache.length; i++){
                 if (_cache[i].requestId != _requestId){
-                    requesteeInbox[_user].push(_cache[i]);
+                    requesteeInbox[_user].push(_cache[i]);}
+                    }
+                }
             }
-        }           
-    }
-
-
-    }
 
     /**
     * @dev Reject an incoming request.
