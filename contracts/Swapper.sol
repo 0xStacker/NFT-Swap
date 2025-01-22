@@ -20,7 +20,6 @@ contract Swapper{
     
     // Takes in request data
     struct RequestIn{
-        address requester;
         address requestee;
         address ownedNft;
         uint ownedNftId;
@@ -42,15 +41,21 @@ contract Swapper{
     // General request pool
     mapping(address _requestee => mapping (uint _requestId => Request)) public _requestPool;
     
-    // Users' inbox
-    mapping(address _requestee => Request[]) public userPendingRequests;
+    // Requestees' inbox
+    mapping(address _requestee => Request[]) public requesteeInbox;
     
-    // User's accepted request 
+    // Requesters' outbox
+    mapping(address _requester => Request[]) public requesterOutbox;
+    
+    // User's accepted requests
     mapping(address _requestee => Request[]) public userAcceptedRequests;
     
-    // User's rejected request
+    // User's rejected requests
     mapping(address _requestee => Request[]) public userRejectedRequests;
-      
+
+    // User's canceled requests
+    mapping(address _user => Request[]) public userCanceledRequests;
+
     // Errors
     error NotOwnedByRequester(address _nft, uint _id);
     error NotOwnedByRequestee(address _nft, uint _id);
@@ -70,7 +75,7 @@ contract Swapper{
     function requestNftSwap(RequestIn calldata _inRequest) external{
         Request memory _request = Request({
             requestId: _nextRequestId,
-            requester: _inRequest.requester,
+            requester: msg.sender,
             requestee: _inRequest.requestee,
             ownedNft: _inRequest.ownedNft,
             ownedNftId: _inRequest.ownedNftId,
@@ -91,14 +96,15 @@ contract Swapper{
             revert NotOwnedByRequestee(_request.requestedNft, _request.requestedNftId);
         }
 
-        if (userPendingRequests[_request.requestee].length == REQUESTEE_INBOX_LIMIT){
+        if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT){
             revert RequesteeInboxFull(10);
         }
 
         _ownedNft.safeTransferFrom(msg.sender, address(this), _request.ownedNftId);
         
         _requestPool[_request.requestee][_request.requestId] = _request;
-        userPendingRequests[_request.requestee].push(_request);
+        requesteeInbox[_request.requestee].push(_request);
+        requesterOutbox[msg.sender].push(_request); 
     }
 
     /**
@@ -116,35 +122,68 @@ contract Swapper{
             revert InvalidRequestee(msg.sender);
         }
 
+        address _requester = _request.requester;
+        address _requestee = _request.requestee;
         IERC721 _requestedNft = IERC721(_request.requestedNft);
         IERC721 _requesterNft = IERC721(_request.ownedNft);
         
     
         if(_requestedNft.ownerOf(_request.requestedNftId) != msg.sender){
             rejectRequest(_requestId);
+            userCanceledRequests[_requester].push(_request);
+            userCanceledRequests[_requestee].push(_request);
         }
+
         else{
             _requestedNft.safeTransferFrom(msg.sender, address(this), _request.requestedNftId);
-            _requesterNft.safeTransferFrom(address(this), _request.requestee, _request.ownedNftId);
-            _requestedNft.safeTransferFrom(address(this), _request.requester, _request.requestedNftId);
-            delete _requestPool[_request.requestee][_requestId];
-            Request[] memory userPending = userPendingRequests[_request.requestee];
-            
-            // remove request from pending and add it to accepted.
-            delete userPendingRequests[_request.requestee];
-            for (uint8 i; i < userPending.length; i++){
-                if (userPending[i].requestId != _requestId){
-                    userPendingRequests[_request.requestee].push(userPending[i]);
-                }
-            }
-            userAcceptedRequests[msg.sender].push(_request);
+            _requesterNft.safeTransferFrom(address(this), _requestee, _request.ownedNftId);
+            _requestedNft.safeTransferFrom(address(this), _requester, _request.requestedNftId);
+            delete _requestPool[_requestee][_requestId];
+            Request[] memory userPending = requesteeInbox[_requestee];
+            Request[] memory requesterPending = requesterOutbox[_requester];
+            // remove request from requestee pending and add it to accepted list.
+            delete requesteeInbox[_requestee];
+            removeRequest(location.inbox, _requestee, userPending, _requestId);
+            userAcceptedRequests[_requestee].push(_request);
+            // remove request from requester pending and add it to accepted list
+            delete requesterOutbox[_requester];
+            removeRequest(location.outbox, _requester, requesterPending, _requestId);
+            userAcceptedRequests[_requester].push(_request);
         }
+    }
+
+    enum location {outbox, inbox}
+
+    /**
+    * @dev remove a request from inbox or outbox of a user.
+    * @param _from is the location to delete from (inbox or outbox).
+    * @param _user is the user's address.
+    * @param _cache is the cached list of the user's inbox or outbox.
+    * @param _requestId is the unique identifier for the request.
+    */
+
+    function removeRequest(location _from, address _user, Request[] memory _cache, uint _requestId) internal{
+        if (_from == location.outbox){
+            for (uint8 i; i < _cache.length; i++){
+                if (_cache[i].requestId != _requestId){
+                    requesterOutbox[_user].push(_cache[i]);
+            }
+        }
+    }
+        else{
+            for (uint8 i; i < _cache.length; i++){
+                if (_cache[i].requestId != _requestId){
+                    requesteeInbox[_user].push(_cache[i]);
+            }
+        }           
+    }
 
 
     }
 
     /**
-    *@dev Reject an incoming request.
+    * @dev Reject an incoming request.
+    * @param _requestId is the identifier for the request.
     */
 
     function rejectRequest(uint _requestId) public{
@@ -158,21 +197,55 @@ contract Swapper{
         
         IERC721 _requesterNft = IERC721(_request.ownedNft);
         _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNftId);
+        address _requester = _request.requester;
+        address _requestee = _request.requestee;
         
         delete _requestPool[_request.requestee][_requestId];
-        Request[] memory userPending = userPendingRequests[_request.requestee];
+        Request[] memory userPending = requesteeInbox[_requestee];
         
         // remove request from pending and add it to rejected 
-        delete userPendingRequests[_request.requestee];
-        for (uint8 i; i < userPending.length; i++){
-            if (userPending[i].requestId != _requestId){
-                userPendingRequests[_request.requestee].push(userPending[i]);
-            }
-        }
-        userRejectedRequests[msg.sender].push(_request);
+        delete requesteeInbox[_request.requestee];
+        removeRequest(location.inbox, _requestee, userPending, _requestId);
+
+        // remove request from sender's outbox
+        Request[] memory _requesterOutbox = requesterOutbox[_requester];
+        delete requesterOutbox[_requester];
+        removeRequest(location.outbox, _requester, _requesterOutbox, _requestId);
+        userRejectedRequests[_requestee].push(_request);
+        userRejectedRequests[_requester].push(_request);
     }
 
-    // Checks if a request object is empty.
+    /**
+    * @dev Allows a requester to cancel their request.
+    * @param _requestId is the identifier of the request.
+    * @notice A requester can only cancel their request if the requestee has not accepted or rejected the request at their end.
+    */
+    function cancelRequest(uint _requestId) external {
+        Request memory _request = _requestPool[msg.sender][_requestId];
+        if (_isEmpty(_request)){
+            revert BadRequest();
+        }
+        if (_request.requester != msg.sender){
+            revert InvalidRequestee(msg.sender);
+        }
+
+        address _requester = _request.requester;
+        address _requestee = _request.requestee;
+        Request[] memory _requesterOutbox = requesterOutbox[msg.sender];
+        Request[] memory _requesteeInbox = requesteeInbox[_request.requestee];
+
+        delete requesterOutbox[_requester];
+        removeRequest(location.outbox, _requester, _requesterOutbox, _requestId);
+        delete requesteeInbox[_requestee];
+        removeRequest(location.inbox, _requestee, _requesteeInbox, _requestId);
+        userCanceledRequests[_requester].push(_request);
+        userCanceledRequests[_requestee].push(_request);
+    }
+
+    /** 
+    * @dev Checks if a request object is empty.
+    * @param _request is the request to be checked.
+    */
     function _isEmpty(Request memory _request) internal pure returns(bool){
         Request memory empty;
         if(
