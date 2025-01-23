@@ -238,6 +238,32 @@ contract Swapper{
         userCanceledRequests[_requestee].push(_request);
     }
 
+    // Getter for user inbox.
+    function fetchInbox(address _user) external view returns(Request[] memory){
+        return requesteeInbox[_user];
+    }
+
+    // Getter for user outbox.
+    function fetchOutbox(address _user) external view returns(Request[] memory){
+        return requesterOutbox[_user];
+    }
+
+    // Getter for user accepted requests
+    function fetchAccepted(address _user) external view returns(Request[] memory){
+        return userAcceptedRequests[_user];
+    }
+
+    // Getter for user rejected requests
+    function fetchRejected(address _user) external view returns(Request[] memory){
+        return userRejectedRequests[_user];
+    }
+
+    // Getter for user canceled requests.
+    function fetchCanceled(address _user) external view returns(Request[] memory){
+        return userCanceledRequests[_user];
+    }
+
+
     /** 
     * @dev Checks if a request object is empty.
     * @param _request is the request to be checked.
