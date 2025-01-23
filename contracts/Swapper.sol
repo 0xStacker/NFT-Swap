@@ -11,7 +11,8 @@ import {IERC721Receiver} from ".deps/github/OpenZeppelin/openzeppelin-contracts/
     * party B can accept or reject the request. If party B accepts, the swap transaction is executed
     * If party B rejects, party A's nft is returned to their wallet.
     * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
-    */
+*/
+
 
 contract Swapper{
     // Universal inbox limit.
@@ -56,11 +57,16 @@ contract Swapper{
     // User's canceled requests
     mapping(address _user => Request[]) public userCanceledRequests;
 
+    // User approved addresses.
+    mapping(address _requestee => mapping(address _requester => bool)) public approvedAddresses;
+
     // Errors
     error NotOwnedByRequester(address _nft, uint _id);
     error NotOwnedByRequestee(address _nft, uint _id);
     error AlreadyRequested();
+    error SelfRequest();
     error InvalidAddress();
+    error NotApproved();
     error BadRequest();
     error InvalidRequestee(address impersonator);
     error RequesteeInboxFull(uint8 size);
@@ -82,10 +88,19 @@ contract Swapper{
             requestedNft: _inRequest.requestedNft,
             requestedNftId: _inRequest.requestedNftId
         });
-
+        
         if (_request.requestedNft == address(0) || _request.ownedNft == address(0)){
-            revert InvalidAddress();
+            revert InvalidAddress();}
+
+        if (_request.requester == _request.requestee){
+            revert SelfRequest();}
+
+        // Ensure that the requestee has approved the requester's address.
+        if (!approvedAddresses[_request.requestee][_request.requester]){
+            revert NotApproved();
         }
+
+        // Ensure both requester and requestee own the nfts involved.
         IERC721 _ownedNft = IERC721(_request.ownedNft);
         if (_ownedNft.ownerOf(_request.ownedNftId) != msg.sender){
             revert NotOwnedByRequester(_request.ownedNft, _request.ownedNftId);
@@ -96,6 +111,7 @@ contract Swapper{
             revert NotOwnedByRequestee(_request.requestedNft, _request.requestedNftId);
         }
 
+        // Prevent spams from unapproved addresses.
         if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT){
             revert RequesteeInboxFull(10);
         }
@@ -278,6 +294,22 @@ contract Swapper{
         else{
             return false;}
             }
+    
+    /**
+    * @dev Allow a user to be able to send a swap request.
+    * @param _user is the user address to be approved.
+    */
+    function approve(address _user) external{
+        approvedAddresses[msg.sender][_user] = true;
+    }
+
+    /**
+    * @dev Prevent an address from sending a request
+    * @param _user is the user address whose approval is to be revoked.
+    */
+    function revokeApproval(address _user) external{
+        approvedAddresses[msg.sender][_user] = false;
+    }
 
     function onERC721Received(
         address _operator,
