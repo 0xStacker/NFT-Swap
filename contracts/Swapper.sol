@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.6;
 import {IERC721} from ".deps/github/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
-
+import {IERC721Receiver} from ".deps/github/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 /**
     * @dev Trustless NFT swapping implementation bewteen two parties A and B.
     * Party A sends a swap request to party B indicating they would like to swap
@@ -278,4 +278,16 @@ contract Swapper{
         else{
             return false;}
             }
+
+    function onERC721Received(
+        address _operator,
+        address _from,
+        uint256 _tokenId,
+        bytes calldata _data
+    ) external pure returns (bytes4){
+        _operator;
+        _from;
+        _tokenId;
+        _data;
+        return IERC721Receiver.onERC721Received.selector;}
         }
