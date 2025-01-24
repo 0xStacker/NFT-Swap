@@ -14,48 +14,62 @@ import {IERC721Receiver} from ".deps/github/OpenZeppelin/openzeppelin-contracts/
 */
 
 
+library RequestLib{
+
+    struct RequestIn{
+    address requestee;
+    address ownedNft;
+    uint ownedNftId;
+    address requestedNft;
+    uint requestedNftId;}
+
+    struct Request{
+    uint requestId;
+    address requester;
+    address requestee;
+    address ownedNft;
+    uint ownedNftId;
+    address requestedNft;
+    uint requestedNftId;}
+
+    function getReq(address r, address o, uint oid, address rr, uint rrid) external pure returns(RequestIn memory){
+        return RequestIn(r, o, oid, rr, rrid);}
+
+    function _isEmpty(Request memory _request) internal pure returns(bool){
+        Request memory empty;
+        if(
+            _request.requestId == empty.requestId && _request.requester == empty.requester
+        ){
+            return true;
+        }
+        else{
+            return false;}}
+}
+
 contract Swapper{
     // Universal inbox limit.
     uint8 constant REQUESTEE_INBOX_LIMIT = 3; 
     uint internal _nextRequestId = 1;
-    
-    // Takes in request data
-    struct RequestIn{
-        address requestee;
-        address ownedNft;
-        uint ownedNftId;
-        address requestedNft;
-        uint requestedNftId;
-    }
 
     // Formatted request data. 
-    struct Request{
-        uint requestId;
-        address requester;
-        address requestee;
-        address ownedNft;
-        uint ownedNftId;
-        address requestedNft;
-        uint requestedNftId;
-    }
 
     // General request pool
-    mapping(address _requestee => mapping (uint _requestId => Request)) public _requestPool;
+    mapping(address _requestee => mapping (uint _requestId => RequestLib.Request)) public _requestPool;
     
     // Requestees' inbox
-    mapping(address _requestee => Request[]) public requesteeInbox;
+    mapping(address _requestee => RequestLib.Request[]) public requesteeInbox;
     
     // Requesters' outbox
-    mapping(address _requester => Request[]) public requesterOutbox;
+    mapping(address _requester => RequestLib.Request[]) public requesterOutbox;
     
     // User's accepted requests
-    mapping(address _requestee => Request[]) public userAcceptedRequests;
+    mapping(address _requestee => RequestLib.Request[]) public userAcceptedRequests;
     
     // User's rejected requests
-    mapping(address _requestee => Request[]) public userRejectedRequests;
+    mapping(address _requestee => RequestLib.Request[]) public userRejectedRequests;
 
     // User's canceled requests
-    mapping(address _user => Request[]) public userCanceledRequests;
+    mapping(address _user => RequestLib.Request[]) public userCanceledRequests;
 
     // User approved addresses.
     mapping(address _requestee => mapping(address _requester => bool)) public approvedAddresses;
@@ -70,7 +84,6 @@ contract Swapper{
     error BadRequest();
     error InvalidRequestee(address impersonator);
     error RequesteeInboxFull(uint8 size);
-
     /**
     * @dev Send a swap request to a user.
     * @param _inRequest holds the request data. see RequestIn struct.
@@ -78,8 +91,8 @@ contract Swapper{
     * contract takes requester's nft into custody, gives the request an id and sends it to requestee's inbox.
     */
 
-    function requestNftSwap(RequestIn calldata _inRequest) external{
-        Request memory _request = Request({
+    function requestNftSwap(RequestLib.RequestIn calldata _inRequest) external{
+        RequestLib.Request memory _request = RequestLib.Request({
             requestId: _nextRequestId,
             requester: msg.sender,
             requestee: _inRequest.requestee,
@@ -129,9 +142,10 @@ contract Swapper{
     * @notice Only the requestee provided in the request data can accept the request
     * @notice Automatically rejects if the requestee no longer hold the required nft.
     */
+    using RequestLib for RequestLib.Request;
     function acceptRequest(uint _requestId) external {
-        Request memory _request = _requestPool[msg.sender][_requestId];
-        if (_isEmpty(_request)){
+        RequestLib.Request memory _request = _requestPool[msg.sender][_requestId];
+        if (_request._isEmpty()){
             revert BadRequest();
         }
         if (_request.requestee != msg.sender){
@@ -155,8 +169,8 @@ contract Swapper{
             _requesterNft.safeTransferFrom(address(this), _requestee, _request.ownedNftId);
             _requestedNft.safeTransferFrom(address(this), _requester, _request.requestedNftId);
             delete _requestPool[_requestee][_requestId];
-            Request[] memory userPending = requesteeInbox[_requestee];
-            Request[] memory requesterPending = requesterOutbox[_requester];
+            RequestLib.Request[] memory userPending = requesteeInbox[_requestee];
+            RequestLib.Request[] memory requesterPending = requesterOutbox[_requester];
             // remove request from requestee pending and add it to accepted list.
             delete requesteeInbox[_requestee];
             removeRequest(location.inbox, _requestee, userPending, _requestId);
@@ -178,7 +192,7 @@ contract Swapper{
     * @param _requestId is the unique identifier for the request.
     */
 
-    function removeRequest(location _from, address _user, Request[] memory _cache, uint _requestId) internal{
+    function removeRequest(location _from, address _user, RequestLib.Request[] memory _cache, uint _requestId) internal{
         if (_from == location.outbox){
             for (uint8 i; i < _cache.length; i++){
                 if (_cache[i].requestId != _requestId){
@@ -199,8 +213,8 @@ contract Swapper{
     */
 
     function rejectRequest(uint _requestId) public{
-        Request memory _request = _requestPool[msg.sender][_requestId];
-        if (_isEmpty(_request)){
+        RequestLib.Request memory _request = _requestPool[msg.sender][_requestId];
+        if (_request._isEmpty()){
             revert BadRequest();
         }
         if (_request.requestee != msg.sender){
@@ -213,14 +227,14 @@ contract Swapper{
         address _requestee = _request.requestee;
         
         delete _requestPool[_request.requestee][_requestId];
-        Request[] memory userPending = requesteeInbox[_requestee];
+        RequestLib.Request[] memory userPending = requesteeInbox[_requestee];
         
         // remove request from pending and add it to rejected 
         delete requesteeInbox[_request.requestee];
         removeRequest(location.inbox, _requestee, userPending, _requestId);
 
         // remove request from sender's outbox
-        Request[] memory _requesterOutbox = requesterOutbox[_requester];
+        RequestLib.Request[] memory _requesterOutbox = requesterOutbox[_requester];
         delete requesterOutbox[_requester];
         removeRequest(location.outbox, _requester, _requesterOutbox, _requestId);
         userRejectedRequests[_requestee].push(_request);
@@ -233,8 +247,8 @@ contract Swapper{
     * @notice A requester can only cancel their request if the requestee has not accepted or rejected the request at their end.
     */
     function cancelRequest(uint _requestId) external {
-        Request memory _request = _requestPool[msg.sender][_requestId];
-        if (_isEmpty(_request)){
+        RequestLib.Request memory _request = _requestPool[msg.sender][_requestId];
+        if (_request._isEmpty()){
             revert BadRequest();
         }
         if (_request.requester != msg.sender){
@@ -243,8 +257,8 @@ contract Swapper{
 
         address _requester = _request.requester;
         address _requestee = _request.requestee;
-        Request[] memory _requesterOutbox = requesterOutbox[msg.sender];
-        Request[] memory _requesteeInbox = requesteeInbox[_request.requestee];
+        RequestLib.Request[] memory _requesterOutbox = requesterOutbox[msg.sender];
+        RequestLib.Request[] memory _requesteeInbox = requesteeInbox[_request.requestee];
 
         delete requesterOutbox[_requester];
         removeRequest(location.outbox, _requester, _requesterOutbox, _requestId);
@@ -255,27 +269,27 @@ contract Swapper{
     }
 
     // Getter for user inbox.
-    function fetchInbox(address _user) external view returns(Request[] memory){
+    function fetchInbox(address _user) external view returns(RequestLib.Request[] memory){
         return requesteeInbox[_user];
     }
 
     // Getter for user outbox.
-    function fetchOutbox(address _user) external view returns(Request[] memory){
+    function fetchOutbox(address _user) external view returns(RequestLib.Request[] memory){
         return requesterOutbox[_user];
     }
 
     // Getter for user accepted requests
-    function fetchAccepted(address _user) external view returns(Request[] memory){
+    function fetchAccepted(address _user) external view returns(RequestLib.Request[] memory){
         return userAcceptedRequests[_user];
     }
 
     // Getter for user rejected requests
-    function fetchRejected(address _user) external view returns(Request[] memory){
+    function fetchRejected(address _user) external view returns(RequestLib.Request[] memory){
         return userRejectedRequests[_user];
     }
 
     // Getter for user canceled requests.
-    function fetchCanceled(address _user) external view returns(Request[] memory){
+    function fetchCanceled(address _user) external view returns(RequestLib.Request[] memory){
         return userCanceledRequests[_user];
     }
 
@@ -284,17 +298,7 @@ contract Swapper{
     * @dev Checks if a request object is empty.
     * @param _request is the request to be checked.
     */
-    function _isEmpty(Request memory _request) internal pure returns(bool){
-        Request memory empty;
-        if(
-            _request.requestId == empty.requestId && _request.requester == empty.requester
-        ){
-            return true;
-        }
-        else{
-            return false;}
-            }
-    
+
     /**
     * @dev Allow a user to be able to send a swap request.
     * @param _user is the user address to be approved.
