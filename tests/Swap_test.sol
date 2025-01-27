@@ -59,5 +59,8 @@ contract SwapTestSuit{
         swapper.acceptRequest(requestId);
         Assert.equal(_nft.ownerOf(1), TestsAccounts.getAccount(1), "Swap Failed");
         Assert.equal(_nft.ownerOf(2), TestsAccounts.getAccount(0), "Swap Failed");
-    }    
+    } 
+
+    function sendSecondReuest() external{
+    }   
 }

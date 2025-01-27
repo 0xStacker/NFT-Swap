@@ -3,16 +3,6 @@
 pragma solidity ^0.8.6;
 import {IERC721} from ".deps/github/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from ".deps/github/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
-/**
-    * @dev Trustless NFT swapping implementation bewteen two parties A and B.
-    * Party A sends a swap request to party B indicating they would like to swap
-    * their Nft for an Nft owned by party B.
-    * Contract takes custody of party A's Nft and sends the request to party B's inbox
-    * party B can accept or reject the request. If party B accepts, the swap transaction is executed
-    * If party B rejects, party A's nft is returned to their wallet.
-    * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
-*/
-
 
 library RequestLib{
 
@@ -35,6 +25,10 @@ library RequestLib{
     function getReq(address r, address o, uint oid, address rr, uint rrid) external pure returns(RequestIn memory){
         return RequestIn(r, o, oid, rr, rrid);}
 
+    /** 
+    * @dev Checks if a request object is empty.
+    * @param _request is the request to be checked.
+    */
     function _isEmpty(Request memory _request) internal pure returns(bool){
         Request memory empty;
         if(
@@ -46,9 +40,19 @@ library RequestLib{
             return false;}}
 }
 
+/**
+    * @dev Trustless NFT swapping implementation bewteen two parties A and B.
+    * Party A sends a swap request to party B indicating they would like to swap
+    * their Nft for an Nft owned by party B.
+    * Contract takes custody of party A's Nft and sends the request to party B's inbox
+    * party B can accept or reject the request. If party B accepts, the swap transaction is executed
+    * If party B rejects, party A's nft is returned to their wallet.
+    * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
+*/
+
 contract Swapper{
     // Universal inbox limit.
-    uint8 constant REQUESTEE_INBOX_LIMIT = 3; 
+    uint8 constant REQUESTEE_INBOX_LIMIT = 10; 
     uint internal _nextRequestId = 1;
 
     // Formatted request data. 
@@ -87,9 +91,11 @@ contract Swapper{
     /**
     * @dev Send a swap request to a user.
     * @param _inRequest holds the request data. see RequestIn struct.
-    * @notice Ensures that both requester and requestee owns the nfts required for the transaction.
+    * @notice Ensures that both requester and requestee owns the nfts required for the tx.
     * contract takes requester's nft into custody, gives the request an id and sends it to requestee's inbox.
     */
+
+    
 
     function requestNftSwap(RequestLib.RequestIn calldata _inRequest) external{
         RequestLib.Request memory _request = RequestLib.Request({
@@ -293,12 +299,6 @@ contract Swapper{
         return userCanceledRequests[_user];
     }
 
-
-    /** 
-    * @dev Checks if a request object is empty.
-    * @param _request is the request to be checked.
-    */
-
     /**
     * @dev Allow a user to be able to send a swap request.
     * @param _user is the user address to be approved.
@@ -316,14 +316,10 @@ contract Swapper{
     }
 
     function onERC721Received(
-        address _operator,
-        address _from,
-        uint256 _tokenId,
-        bytes calldata _data
+        address,
+        address,
+        uint256,
+        bytes calldata
     ) external pure returns (bytes4){
-        _operator;
-        _from;
-        _tokenId;
-        _data;
         return IERC721Receiver.onERC721Received.selector;}
         }
