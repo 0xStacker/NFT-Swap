@@ -38,7 +38,7 @@ library RequestLib{
         }
         else{
             return false;}}
-}
+        }
 
 /**
     * @dev Trustless NFT swapping implementation bewteen two parties A and B.
@@ -75,26 +75,32 @@ contract Swapper{
     // User's canceled requests
     mapping(address _user => RequestLib.Request[]) public userCanceledRequests;
 
-    // User approved addresses.
+    // User's approved addresses. Only adresses aproved by user can send nft swap requests
+    // to prevent spams.
     mapping(address _requestee => mapping(address _requester => bool)) public approvedAddresses;
 
     // Errors
     error NotOwnedByRequester(address _nft, uint _id);
     error NotOwnedByRequestee(address _nft, uint _id);
-    error AlreadyRequested();
     error SelfRequest();
     error InvalidAddress();
     error NotApproved();
     error BadRequest();
     error InvalidRequestee(address impersonator);
     error RequesteeInboxFull(uint8 size);
+
+    // Events
+    event RequestSwap(uint _requestId);
+    event AcceptSwap(uint _requestId);
+    event RejectSwap(uint _requestId);
+    event CancelSwap(uint _requestId);
+    
     /**
     * @dev Send a swap request to a user.
     * @param _inRequest holds the request data. see RequestIn struct.
     * @notice Ensures that both requester and requestee owns the nfts required for the tx.
     * contract takes requester's nft into custody, gives the request an id and sends it to requestee's inbox.
     */
-
     
 
     function requestNftSwap(RequestLib.RequestIn calldata _inRequest) external{
@@ -140,6 +146,7 @@ contract Swapper{
         _requestPool[_request.requestee][_request.requestId] = _request;
         requesteeInbox[_request.requestee].push(_request);
         requesterOutbox[msg.sender].push(_request); 
+        emit RequestSwap(_request.requestId);
     }
 
     /**
@@ -168,6 +175,7 @@ contract Swapper{
             rejectRequest(_requestId);
             userCanceledRequests[_requester].push(_request);
             userCanceledRequests[_requestee].push(_request);
+            emit CancelSwap(_requestId);
         }
 
         else{
@@ -186,32 +194,8 @@ contract Swapper{
             removeRequest(location.outbox, _requester, requesterPending, _requestId);
             userAcceptedRequests[_requester].push(_request);
         }
+        emit AcceptSwap(_requestId);
     }
-
-    enum location {outbox, inbox}
-
-    /**
-    * @dev remove a request from inbox or outbox of a user.
-    * @param _from is the location to delete from (inbox or outbox).
-    * @param _user is the user's address.
-    * @param _cache is the cached list of the user's inbox or outbox.
-    * @param _requestId is the unique identifier for the request.
-    */
-
-    function removeRequest(location _from, address _user, RequestLib.Request[] memory _cache, uint _requestId) internal{
-        if (_from == location.outbox){
-            for (uint8 i; i < _cache.length; i++){
-                if (_cache[i].requestId != _requestId){
-                    requesterOutbox[_user].push(_cache[i]);}
-                    }
-                }
-        else{
-            for (uint8 i; i < _cache.length; i++){
-                if (_cache[i].requestId != _requestId){
-                    requesteeInbox[_user].push(_cache[i]);}
-                    }
-                }
-            }
 
     /**
     * @dev Reject an incoming request.
@@ -245,7 +229,31 @@ contract Swapper{
         removeRequest(location.outbox, _requester, _requesterOutbox, _requestId);
         userRejectedRequests[_requestee].push(_request);
         userRejectedRequests[_requester].push(_request);
+        emit RejectSwap(_requestId);
     }
+
+    enum location {outbox, inbox}
+
+    /**
+    * @dev remove a request from inbox or outbox of a user.
+    * @param _from is the location to delete from (inbox or outbox).
+    * @param _user is the user's address.
+    * @param _cache is the cached list of the user's inbox or outbox.
+    * @param _requestId is the unique identifier for the request.
+    */
+
+    function removeRequest(location _from, address _user, RequestLib.Request[] memory _cache, uint _requestId) internal{
+        if (_from == location.outbox){
+            for (uint8 i; i < _cache.length; i++){
+                if (_cache[i].requestId != _requestId){
+                    requesterOutbox[_user].push(_cache[i]);}}
+                }
+        else{
+            for (uint8 i; i < _cache.length; i++){
+                if (_cache[i].requestId != _requestId){
+                    requesteeInbox[_user].push(_cache[i]);}}}
+                }
+
 
     /**
     * @dev Allows a requester to cancel their request.
