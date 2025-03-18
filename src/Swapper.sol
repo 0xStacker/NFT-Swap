@@ -128,7 +128,6 @@ contract Swapper {
         }
 
         _ownedNft.safeTransferFrom(msg.sender, address(this), _request.ownedNftId);
-
         _requestPool[_request.requestee][_request.requestId] = _request;
         requesteeInbox[_request.requestee].push(_request);
         requesterOutbox[msg.sender].push(_request);
@@ -173,8 +172,8 @@ contract Swapper {
             delete requesterOutbox[_requester];
             removeRequest(location.outbox, _requester, requesterPending, _requestId);
             userAcceptedRequests[_requester].push(_request);
+            emit AcceptSwap(_requestId);
         }
-        emit AcceptSwap(_requestId);
     }
 
     /**
@@ -321,6 +320,10 @@ contract Swapper {
 
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
+    }
+
+    function getRequest(uint _requestId) external view returns(Request memory){
+        return _requestPool[msg.sender][_requestId];
     }
 
     /**

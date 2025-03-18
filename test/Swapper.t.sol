@@ -38,7 +38,8 @@ contract SwapTest is Test {
         nft.mint();
     }
 
-    function testRequestSwap() public {
+// fucking hell bro lmfaoooo
+    function testRequestSwapAndAccept() public {
         vm.prank(user1);
         _mintFromCollection();
         vm.prank(user2);
@@ -54,5 +55,86 @@ contract SwapTest is Test {
         _requestSwap(user2, address(nft), address(nft), 1, 2);
         assertEq(nft.ownerOf(1), address(swapper));
         assertEq(swapper.fetchInbox(user2).length, 1);
+        vm.startPrank(user2); 
+        nft.approve(address(swapper), 2);
+        swapper.acceptRequest(swapper.fetchInbox(user2)[0].requestId);
+        vm.stopPrank();
+        assertEq(nft.ownerOf(1), user2);
+        assertEq(nft.ownerOf(2), user1);
+        assertEq(swapper.fetchInbox(user2).length, 0);
+        assertEq(swapper.fetchOutbox(user1).length, 0);
+        assertEq(swapper.fetchAccepted(user2).length, 1);
+        assertEq(swapper.fetchAccepted(user1).length, 1);
     }
+
+    function testRequestSwapAndReject() public{
+        vm.prank(user1);
+        _mintFromCollection();
+        vm.prank(user2);
+        _mintFromCollection();
+        vm.prank(user1);
+        assertEq(nft.ownerOf(1), user1);
+        assertEq(nft.ownerOf(2), user2);
+        vm.prank(user2);
+        swapper.approve(user1);
+        vm.prank(user1);
+        nft.approve(address(swapper), 1);
+        vm.prank(user1);
+        _requestSwap(user2, address(nft), address(nft), 1, 2);
+        assertEq(nft.ownerOf(1), address(swapper));
+        assertEq(swapper.fetchInbox(user2).length, 1);
+        vm.startPrank(user2);
+        swapper.rejectRequest(swapper.fetchInbox(user2)[0].requestId);
+        vm.stopPrank();
+        assertEq(nft.ownerOf(1), user1);
+        assertEq(nft.ownerOf(2), user2);
+        assertEq(swapper.fetchInbox(user2).length, 0);
+        assertEq(swapper.fetchOutbox(user1).length, 0);
+        assertEq(swapper.fetchRejected(user2).length, 1);
+        assertEq(swapper.fetchRejected(user1).length, 1);
+    }
+
+    function testRevertRequestNFtSwapWhenEitherPartyDontHaveNft() public {
+        vm.prank(user1);
+        _mintFromCollection();
+        vm.prank(user3);
+        _mintFromCollection();
+        vm.prank(user1);
+        assertEq(nft.ownerOf(1), user1);
+        vm.prank(user2);
+        swapper.approve(user1);
+        vm.prank(user1);
+        nft.approve(address(swapper), 1);
+        vm.prank(user1);
+        vm.expectRevert();
+        _requestSwap(user2, address(nft), address(nft), 1, 2);
+    }
+
+    function testRevertWhenPartyBTransferNftAmidstSwap() public{
+        vm.prank(user1);
+        _mintFromCollection();
+        vm.prank(user2);
+        _mintFromCollection();
+        vm.prank(user1);
+        assertEq(nft.ownerOf(1), user1);
+        assertEq(nft.ownerOf(2), user2);
+        vm.prank(user2);
+        swapper.approve(user1);
+        vm.prank(user1);
+        nft.approve(address(swapper), 1);
+        vm.prank(user1);
+        _requestSwap(user2, address(nft), address(nft), 1, 2);
+        assertEq(nft.ownerOf(1), address(swapper));
+        assertEq(swapper.fetchInbox(user2).length, 1);
+        vm.startPrank(user2); 
+        nft.transferFrom(user2, user3, 2);
+        swapper.acceptRequest(1);
+        vm.stopPrank();
+        assertEq(nft.ownerOf(1), user1);
+        assertEq(swapper.fetchInbox(user2).length, 0);
+        assertEq(swapper.fetchOutbox(user1).length, 0);
+        assertEq(swapper.fetchCanceled(user2).length, 1);
+        assertEq(swapper.fetchCanceled(user1).length, 1);
+    }
+
 }
