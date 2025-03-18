@@ -5,21 +5,27 @@ import {Test, console} from "forge-std/Test.sol";
 import {Swapper} from "../src/Swapper.sol";
 import {Nft} from "../src/NFT-Swap.sol";
 
-contract SwapTest is Test{
+contract SwapTest is Test {
     Nft nft;
     Swapper swapper;
     address user1 = address(123);
     address user2 = address(234);
     address user3 = address(456);
 
-    Swapper.RequestIn swapRequest1; 
-    function setUp() public{
+    Swapper.RequestIn swapRequest1;
+
+    function setUp() public {
         nft = new Nft();
         swapper = new Swapper();
     }
 
-    function _requestSwap(address _requestee, address _ownedNft, address _requestedNft,
-     uint _ownedTokenId, uint _requestedTokenId) internal{
+    function _requestSwap(
+        address _requestee,
+        address _ownedNft,
+        address _requestedNft,
+        uint256 _ownedTokenId,
+        uint256 _requestedTokenId
+    ) internal {
         swapRequest1.requestee = _requestee;
         swapRequest1.ownedNft = _ownedNft;
         swapRequest1.requestedNft = _requestedNft;
@@ -28,11 +34,11 @@ contract SwapTest is Test{
         swapper.requestNftSwap(swapRequest1);
     }
 
-    function _mintFromCollection() internal{
+    function _mintFromCollection() internal {
         nft.mint();
     }
 
-    function testRequestSwap() public{
+    function testRequestSwap() public {
         vm.prank(user1);
         _mintFromCollection();
         vm.prank(user2);
