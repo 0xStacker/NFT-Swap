@@ -50,7 +50,7 @@ contract Swapper {
     error NotOwnedByRequestee(address _nft, uint256 _id);
     error SelfRequest();
     error InvalidAddress();
-    error NotApproved();
+    error NotApproved(address requester);
     error BadRequest();
     error InvalidRequestee(address impersonator);
     error RequesteeInboxFull(uint8 size);
@@ -108,7 +108,7 @@ contract Swapper {
 
         // Ensure that the requestee has approved the requester's address.
         if (!approvedAddresses[_request.requestee][_request.requester]) {
-            revert NotApproved();
+            revert NotApproved(_request.requester);
         }
 
         // Ensure both requester and requestee own the nfts involved.
@@ -131,6 +131,7 @@ contract Swapper {
         _requestPool[_request.requestee][_request.requestId] = _request;
         requesteeInbox[_request.requestee].push(_request);
         requesterOutbox[msg.sender].push(_request);
+        _nextRequestId ++;
         emit RequestSwap(_request.requestId);
     }
 
@@ -241,15 +242,15 @@ contract Swapper {
      * @param _requestId is the identifier of the request.
      * @notice A requester can only cancel their request if the requestee has not accepted or rejected the request at their end.
      */
-    function cancelRequest(uint256 _requestId) external {
-        Request memory _request = _requestPool[msg.sender][_requestId];
+    function cancelRequest(address _to, uint256 _requestId) external {
+        Request memory _request = _requestPool[_to][_requestId];
         if (_isEmpty(_request)) {
             revert BadRequest();
         }
         address _requester = _request.requester;
         address _requestee = _request.requestee;
         IERC721 _requesterNft = IERC721(_request.ownedNft);
-        delete _requestPool[msg.sender][_requestId];
+        delete _requestPool[_requestee][_requestId];
         // Return requester's NFT
         _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNftId);
         Request[] memory _requesterOutbox = requesterOutbox[_requester];
@@ -266,12 +267,14 @@ contract Swapper {
         Request[] memory _userInbox = requesteeInbox[msg.sender];
         for (uint256 i; i < _userInbox.length; i++) {
             Request memory _request = _requestPool[msg.sender][_userInbox[i].requestId];
+            Request[] memory _requesterOutbox = requesterOutbox[_request.requester];
+            delete requesterOutbox[_request.requester];
             IERC721 _requesterNft = IERC721(_request.ownedNft);
             // Return requester's NFT
             _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNftId);
             address _requester = _request.requester;
             delete _requestPool[_request.requestee][_request.requestId];
-            removeRequest(location.outbox, _requester, requesterOutbox[_requester], _request.requestId);
+            removeRequest(location.outbox, _requester, _requesterOutbox, _request.requestId);
         }
         delete requesteeInbox[msg.sender];
         emit ClearInbox(msg.sender);
@@ -322,7 +325,7 @@ contract Swapper {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    function getRequest(uint _requestId) external view returns(Request memory){
+    function getRequest(uint256 _requestId) external view returns (Request memory) {
         return _requestPool[msg.sender][_requestId];
     }
 
