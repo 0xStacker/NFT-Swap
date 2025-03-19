@@ -131,7 +131,7 @@ contract Swapper {
         _requestPool[_request.requestee][_request.requestId] = _request;
         requesteeInbox[_request.requestee].push(_request);
         requesterOutbox[msg.sender].push(_request);
-        _nextRequestId ++;
+        _nextRequestId++;
         emit RequestSwap(_request.requestId);
     }
 
