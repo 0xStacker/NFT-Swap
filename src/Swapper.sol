@@ -5,7 +5,8 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /**
- *  @title NFT SWAP
+ * @title NFT SWAP
+ * @author 0xstacker "github.com/0xStacker
  * A Trustless tool for exchanging NFTs bewteen two parties A and B.
  * Party A sends a swap request to party B indicating they would like to swap
  * their Nft for an Nft owned by party B.
@@ -13,7 +14,6 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
  * party B can accept or reject the request. If party B accepts, the swap transaction is executed
  * If party B rejects, party A's nft is returned to their wallet.
  * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
- * @author 0xstacker "github.com/0xStacker
  */
 contract Swapper {
     // Universal inbox limit.

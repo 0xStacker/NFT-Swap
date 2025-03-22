@@ -38,7 +38,6 @@ contract SwapTest is Test {
         nft.mint();
     }
 
-    // fucking hell bro lmfaoooo
     function testRequestSwapAndAccept() public {
         vm.prank(user1);
         _mintFromCollection();
