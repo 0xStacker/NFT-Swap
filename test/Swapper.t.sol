@@ -13,6 +13,8 @@ contract SwapTest is Test {
     address user3 = address(456);
 
     Swapper.RequestIn swapRequest1;
+    Swapper.Nft ownedNft;
+    Swapper.Nft requestedNft;
 
     function setUp() public {
         nft = new Nft();
@@ -26,11 +28,13 @@ contract SwapTest is Test {
         uint256 _ownedTokenId,
         uint256 _requestedTokenId
     ) internal {
+        ownedNft.contractAddress = _ownedNft;
+        ownedNft.tokenId = _ownedTokenId;
+        requestedNft.contractAddress = _requestedNft;
+        requestedNft.tokenId = _requestedTokenId;
         swapRequest1.requestee = _requestee;
-        swapRequest1.ownedNft = _ownedNft;
-        swapRequest1.requestedNft = _requestedNft;
-        swapRequest1.requestedNftId = _requestedTokenId;
-        swapRequest1.ownedNftId = _ownedTokenId;
+        swapRequest1.ownedNft = ownedNft;
+        swapRequest1.requestedNft = requestedNft;
         swapper.requestNftSwap(swapRequest1);
     }
 

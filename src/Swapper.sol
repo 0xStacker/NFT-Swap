@@ -19,6 +19,8 @@ contract Swapper {
     // Universal inbox limit.
     uint8 constant REQUESTEE_INBOX_LIMIT = 10;
 
+    uint constant MAX_TRADEABLE_NFT = 15;
+
     uint256 internal _nextRequestId = 1;
 
     // Formatted request data.
@@ -69,23 +71,97 @@ contract Swapper {
      * @notice Ensures that both requester and requestee owns the nfts required for the tx.
      * contract takes requester's nft into custody, gives the request an id and sends it to requestee's inbox.
      */
+
+    struct Nft{
+        address contractAddress;
+        uint tokenId;
+    }
+
     struct RequestIn {
         address requestee;
-        address ownedNft;
-        address requestedNft;
-        uint256 ownedNftId;
-        uint256 requestedNftId;
+        Nft ownedNft;
+        Nft requestedNft;
     }
 
     struct Request {
         address requester;
         address requestee;
-        address ownedNft;
-        address requestedNft;
-        uint256 ownedNftId;
-        uint256 requestedNftId;
         uint256 requestId;
+        Nft ownedNft;
+        Nft requestedNft;
     }
+
+    struct MultiRequestIn{
+        address requestee;
+        Nft[] ownedNfts;
+        Nft[] requestedNfts;
+    }
+
+    struct MultiRequest{
+        address requester;
+        address requestee;
+        uint256 requestId;
+        Nft[] ownedNfts;
+        Nft[] requestedNfts;
+    }
+
+    function requestNftSwapMulti(MultiRequestIn calldata _inRequest) external{
+        MultiRequest memory _request = MultiRequest({
+        requestId: _nextRequestId,
+        requester: msg.sender,
+        requestee: _inRequest.requestee,
+        ownedNfts: _inRequest.ownedNfts,
+        requestedNfts: _inRequest.requestedNfts
+        });
+
+        /// DO ZERO CHECK HERE
+
+        if (_request.requester == _request.requestee) {
+            revert SelfRequest();
+        }
+
+        // Ensure that the requestee has approved the requester's address.
+        if (!approvedAddresses[_request.requestee][_request.requester]) {
+            revert NotApproved(_request.requester);
+        }
+
+        // Ensure both requester and requestee own the nfts involved.
+        uint totalOwnedNfts = _request.ownedNfts.length;
+
+        for (uint i; i < totalOwnedNfts; i++){
+            IERC721 _ownedNft = IERC721(_request.ownedNfts[i].contractAddress);
+            if (_ownedNft.ownerOf(_request.ownedNfts[i].tokenId) != msg.sender) {
+            revert NotOwnedByRequester(_request.ownedNfts[i].contractAddress, _request.ownedNfts[i].tokenId);
+            }
+        }
+
+        uint totalRequestedNfts = _request.requestedNfts.length;
+
+        for (uint i; i < totalRequestedNfts; i++){
+            IERC721 _requestedNft = IERC721(_request.requestedNfts[i].contractAddress);
+            if (_requestedNft.ownerOf(_request.requestedNfts[i].tokenId) != msg.sender) {
+            revert NotOwnedByRequester(_request.requestedNfts[i].contractAddress, _request.requestedNfts[i].tokenId);
+            }
+        }
+
+
+        // Prevent spams.
+        if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT) {
+            revert RequesteeInboxFull(10);
+        }
+
+        //_requestPool[_request.requestee][_request.requestId] = _request;
+        // requesteeInbox[_request.requestee].push(_request);
+        // requesterOutbox[msg.sender].push(_request);
+        _nextRequestId++;
+
+        for(uint i; i <= totalOwnedNfts; i++){
+            IERC721(_request.ownedNfts[i].contractAddress).safeTransferFrom(msg.sender, address(this), _request.ownedNfts[i].tokenId);
+        }
+
+        emit RequestSwap(_request.requestId);
+    }
+
 
     function requestNftSwap(RequestIn calldata _inRequest) external {
         Request memory _request = Request({
@@ -93,12 +169,10 @@ contract Swapper {
             requester: msg.sender,
             requestee: _inRequest.requestee,
             ownedNft: _inRequest.ownedNft,
-            ownedNftId: _inRequest.ownedNftId,
-            requestedNft: _inRequest.requestedNft,
-            requestedNftId: _inRequest.requestedNftId
+            requestedNft: _inRequest.requestedNft
         });
 
-        if (_request.requestedNft == address(0) || _request.ownedNft == address(0)) {
+        if (_request.requestedNft.contractAddress == address(0) || _request.ownedNft.contractAddress == address(0)) {
             revert InvalidAddress();
         }
 
@@ -112,14 +186,14 @@ contract Swapper {
         }
 
         // Ensure both requester and requestee own the nfts involved.
-        IERC721 _ownedNft = IERC721(_request.ownedNft);
-        if (_ownedNft.ownerOf(_request.ownedNftId) != msg.sender) {
-            revert NotOwnedByRequester(_request.ownedNft, _request.ownedNftId);
+        IERC721 _ownedNft = IERC721(_request.ownedNft.contractAddress);
+        if (_ownedNft.ownerOf(_request.ownedNft.tokenId) != msg.sender) {
+            revert NotOwnedByRequester(_request.ownedNft.contractAddress, _request.ownedNft.tokenId);
         }
 
-        IERC721 _requestedNft = IERC721(_request.requestedNft);
-        if (_requestedNft.ownerOf(_request.requestedNftId) != _request.requestee) {
-            revert NotOwnedByRequestee(_request.requestedNft, _request.requestedNftId);
+        IERC721 _requestedNft = IERC721(_request.requestedNft.contractAddress);
+        if (_requestedNft.ownerOf(_request.requestedNft.tokenId) != _request.requestee) {
+            revert NotOwnedByRequestee(_request.requestedNft.contractAddress, _request.requestedNft.tokenId);
         }
 
         // Prevent spams.
@@ -131,7 +205,7 @@ contract Swapper {
         requesteeInbox[_request.requestee].push(_request);
         requesterOutbox[msg.sender].push(_request);
         _nextRequestId++;
-        _ownedNft.safeTransferFrom(msg.sender, address(this), _request.ownedNftId);
+        _ownedNft.safeTransferFrom(msg.sender, address(this), _request.ownedNft.tokenId);
         emit RequestSwap(_request.requestId);
     }
 
@@ -149,11 +223,13 @@ contract Swapper {
 
         address _requester = _request.requester;
         address _requestee = _request.requestee;
-        IERC721 _requestedNft = IERC721(_request.requestedNft);
-        IERC721 _requesterNft = IERC721(_request.ownedNft);
+        IERC721 _requestedNft = IERC721(_request.requestedNft.contractAddress);
+        IERC721 _requesterNft = IERC721(_request.ownedNft.contractAddress);
+        uint _requestedNftId = _request.requestedNft.tokenId;
+        uint _requesterNftId = _request.ownedNft.tokenId;
 
         // Terminate exchange if party B no longer holds the NFT requested by party A
-        if (_requestedNft.ownerOf(_request.requestedNftId) != msg.sender) {
+        if (_requestedNft.ownerOf(_requestedNftId) != msg.sender) {
             rejectRequest(_requestId);
             userCanceledRequests[_requester].push(_request);
             userCanceledRequests[_requestee].push(_request);
@@ -169,9 +245,9 @@ contract Swapper {
             delete requesterOutbox[_requester];
             removeRequest(location.outbox, _requester, requesterPending, _requestId);
             userAcceptedRequests[_requester].push(_request);
-            _requestedNft.safeTransferFrom(msg.sender, address(this), _request.requestedNftId);
-            _requesterNft.safeTransferFrom(address(this), _requestee, _request.ownedNftId);
-            _requestedNft.safeTransferFrom(address(this), _requester, _request.requestedNftId);
+            _requestedNft.safeTransferFrom(msg.sender, address(this), _requestedNftId); /// *****
+            _requesterNft.safeTransferFrom(address(this), _requestee, _requesterNftId);
+            _requestedNft.safeTransferFrom(address(this), _requester, _requestedNftId);
             emit AcceptSwap(_requestId);
         }
     }
@@ -186,7 +262,7 @@ contract Swapper {
             revert BadRequest();
         }
 
-        IERC721 _requesterNft = IERC721(_request.ownedNft);
+        IERC721 _requesterNft = IERC721(_request.ownedNft.contractAddress);
         address _requester = _request.requester;
         address _requestee = _request.requestee;
 
@@ -204,7 +280,7 @@ contract Swapper {
         userRejectedRequests[_requestee].push(_request);
         userRejectedRequests[_requester].push(_request);
         // Return requester's NFT
-        _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNftId);
+        _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNft.tokenId);
         emit RejectSwap(_requestId);
     }
 
@@ -248,7 +324,7 @@ contract Swapper {
         }
         address _requester = _request.requester;
         address _requestee = _request.requestee;
-        IERC721 _requesterNft = IERC721(_request.ownedNft);
+        IERC721 _requesterNft = IERC721(_request.ownedNft.contractAddress);
         delete _requestPool[_requestee][_requestId];
         Request[] memory _requesterOutbox = requesterOutbox[_requester];
         Request[] memory _requesteeInbox = requesteeInbox[_request.requestee];
@@ -259,7 +335,7 @@ contract Swapper {
         userCanceledRequests[_requester].push(_request);
         userCanceledRequests[_requestee].push(_request);
         // Return requester's NFT
-        _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNftId);
+        _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNft.tokenId);
         emit CancelSwap(_requestId);
     }
 
@@ -270,11 +346,11 @@ contract Swapper {
             Request memory _request = _requestPool[msg.sender][_userInbox[i].requestId];
             Request[] memory _requesterOutbox = requesterOutbox[_request.requester];
             delete requesterOutbox[_request.requester];
-            IERC721 _requesterNft = IERC721(_request.ownedNft);
+            IERC721 _requesterNft = IERC721(_request.ownedNft.contractAddress);
             address _requester = _request.requester;
             delete _requestPool[_request.requestee][_request.requestId];
             removeRequest(location.outbox, _requester, _requesterOutbox, _request.requestId);
-            _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNftId);
+            _requesterNft.safeTransferFrom(address(this), _request.requester, _request.ownedNft.tokenId);
         }
         emit ClearInbox(msg.sender);
     }
