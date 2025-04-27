@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.25;
 
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
@@ -26,20 +26,24 @@ contract Swapper {
     // General request pool
     mapping(address _requestee => mapping(uint256 _requestId => Request)) public _requestPool;
 
+    mapping(address => mapping(uint => uint inboxRequestIndex)) inboxRequestIndexTracker;
+
     // Requestees' inbox
-    mapping(address _requestee => Request[]) public requesteeInbox;
+    mapping(address _requestee => uint256[]) public requesteeInbox;
+
+    mapping(address => mapping(uint => uint outboxRequestIndex)) outboxRequestIndexTracker;
 
     // Requesters' outbox
-    mapping(address _requester => Request[]) public requesterOutbox;
+    mapping(address _requester => uint256[]) public requesterOutbox;
 
     // User's accepted requests
-    mapping(address _requestee => Request[]) public userAcceptedRequests;
+    mapping(address _requestee => uint256[]) public userAcceptedRequests;
 
     // User's rejected requests
-    mapping(address _requestee => Request[]) public userRejectedRequests;
+    mapping(address _requestee => uint256[]) public userRejectedRequests;
 
     // User's canceled requests
-    mapping(address _user => Request[]) public userCanceledRequests;
+    mapping(address _user => uint256[]) public userCanceledRequests;
 
     // User's approved addresses. Only adresses aproved by user can send nft swap requests
     // to prevent spams.
@@ -134,8 +138,8 @@ contract Swapper {
         }
 
         _requestPool[_request.requestee][_request.requestId] = _request;
-        requesteeInbox[_request.requestee].push(_request);
-        requesterOutbox[msg.sender].push(_request);
+        requesteeInbox[_request.requestee].push(_request.requestId);
+        requesterOutbox[msg.sender].push(_request.requestId);
         _nextRequestId++;
 
         for(uint i; i <= totalOwnedNfts; i++){
@@ -180,16 +184,16 @@ contract Swapper {
             revert NotApproved(_request.requester);
         }
 
-        // Ensure both requester and requestee own the nfts involved.
+        // Ensure requester own the nfts involved.
         IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
         if (_ownedNft.ownerOf(ownedNft.tokenId) != msg.sender) {
             revert NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
         }
 
-        IERC721 _requestedNft = IERC721(requestedNft.contractAddress);
-        if (_requestedNft.ownerOf(requestedNft.tokenId) != _request.requestee) {
-            revert NotOwnedByRequestee(requestedNft.contractAddress, requestedNft.tokenId);
-        }
+        // IERC721 _requestedNft = IERC721(requestedNft.contractAddress);
+        // if (_requestedNft.ownerOf(requestedNft.tokenId) != _request.requestee) {
+        //     revert NotOwnedByRequestee(requestedNft.contractAddress, requestedNft.tokenId);
+        // }
 
         // Prevent spams.
         if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT) {
@@ -197,8 +201,10 @@ contract Swapper {
         }
 
         _requestPool[_request.requestee][_request.requestId] = _request;
-        requesteeInbox[_request.requestee].push(_request);
-        requesterOutbox[msg.sender].push(_request);
+        inboxRequestIndexTracker[_request.requestee][_request.requestId] = _nextRequestId;
+        outboxRequestIndexTracker[_request.requester][_request.requestId] = _nextRequestId;
+        requesteeInbox[_request.requestee].push(_request.requestId);
+        requesterOutbox[msg.sender].push(_request.requestId);
         _nextRequestId++;
         _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
         emit RequestSwap(_request.requestId);
@@ -235,20 +241,20 @@ contract Swapper {
             // Terminate exchange if party B no longer holds the NFT requested by party A
             if (_requestedNft.ownerOf(_requestedNftId) != msg.sender) {
                 rejectRequest(_requestId);
-                userCanceledRequests[_requester].push(_request);
-                userCanceledRequests[_requestee].push(_request);
+                userCanceledRequests[_requester].push(_request.requestId);
+                userCanceledRequests[_requestee].push(_request.requestId);
             } else {
-                delete _requestPool[_requestee][_requestId];
-                Request[] memory userPending = requesteeInbox[_requestee];
-                Request[] memory requesterPending = requesterOutbox[_requester];
+                delete _requestPool[_requestee][_requestId]; //__ Add an accepted and rejected flag to request struct__//
+                // uint256[] memory userPending = requesteeInbox[_requestee];
+                // uint[] memory requesterPending = requesterOutbox[_requester];
                 // remove request from requestee pending and add it to accepted list.
-                delete requesteeInbox[_requestee];
-                removeRequest(location.inbox, _requestee, userPending, _requestId);
-                userAcceptedRequests[_requestee].push(_request);
+                // delete requesteeInbox[_requestee];
+                removeRequest(location.inbox, _requestee, _requestId);
+                userAcceptedRequests[_requestee].push(_request.requestId);
                 // remove request from requester pending and add it to accepted list
-                delete requesterOutbox[_requester];
-                removeRequest(location.outbox, _requester, requesterPending, _requestId);
-                userAcceptedRequests[_requester].push(_request);
+                // delete requesterOutbox[_requester];
+                removeRequest(location.outbox, _requester, _requestId);
+                userAcceptedRequests[_requester].push(_request.requestId);
                 _requestedNft.safeTransferFrom(msg.sender, address(this), _requestedNftId); /// *****
                 _requesterNft.safeTransferFrom(address(this), _requestee, _requesterNftId);
                 _requestedNft.safeTransferFrom(address(this), _requester, _requestedNftId);
@@ -279,18 +285,18 @@ contract Swapper {
             address _requestee = _request.requestee;
 
             delete _requestPool[_request.requestee][_requestId];
-            Request[] memory userPending = requesteeInbox[_requestee];
+            // Request[] memory userPending = requesteeInbox[_requestee];
 
             // remove request from pending and add it to rejected
-            delete requesteeInbox[_request.requestee];
-            removeRequest(location.inbox, _requestee, userPending, _requestId);
+            // delete requesteeInbox[_request.requestee];
+            removeRequest(location.inbox, _requestee, _requestId);
 
             // remove request from sender's outbox
-            Request[] memory _requesterOutbox = requesterOutbox[_requester];
-            delete requesterOutbox[_requester];
-            removeRequest(location.outbox, _requester, _requesterOutbox, _requestId);
-            userRejectedRequests[_requestee].push(_request);
-            userRejectedRequests[_requester].push(_request);
+            // uint[] memory _requesterOutbox = requesterOutbox[_requester];
+            // delete requesterOutbox[_requester];
+            removeRequest(location.outbox, _requester, _requestId);
+            userRejectedRequests[_requestee].push(_request.requestId);
+            userRejectedRequests[_requester].push(_request.requestId);
             // Return requester's NFT
             _requesterNft.safeTransferFrom(address(this), _request.requester, ownedNft.tokenId);
             emit RejectSwap(_requestId);
@@ -306,22 +312,23 @@ contract Swapper {
      * @dev remove a request from inbox or outbox of a user.
      * @param _from is the location to delete from (inbox or outbox).
      * @param _user is the user's address.
-     * @param _cache is the cached list of the user's inbox or outbox.
      * @param _requestId is the unique identifier for the request.
      */
-    function removeRequest(location _from, address _user, Request[] memory _cache, uint256 _requestId) internal {
+    function removeRequest(location _from, address _user, uint256 _requestId) internal {
         if (_from == location.outbox) {
-            for (uint8 i; i < _cache.length; i++) {
-                if (_cache[i].requestId != _requestId) {
-                    requesterOutbox[_user].push(_cache[i]);
-                }
-            }
+            require(outboxRequestIndexTracker[_user][_requestId] != 0, "Item not in outbox");
+            uint itemIndex = --outboxRequestIndexTracker[_user][_requestId];
+            uint lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
+            requesterOutbox[_user][itemIndex] = lastItem;
+            requesterOutbox[_user].pop();
+            outboxRequestIndexTracker[_user][_requestId] = 0;
         } else {
-            for (uint8 i; i < _cache.length; i++) {
-                if (_cache[i].requestId != _requestId) {
-                    requesteeInbox[_user].push(_cache[i]);
-                }
-            }
+            require(inboxRequestIndexTracker[_user][_requestId] != 0, "Item not in inbox");
+            uint itemIndex = --inboxRequestIndexTracker[_user][_requestId];
+            uint lastItem = requesteeInbox[_user][requesteeInbox[_user].length - 1];
+            requesteeInbox[_user][itemIndex] = lastItem;
+            requesteeInbox[_user].pop();
+            inboxRequestIndexTracker[_user][_requestId] = 0;
         }
     }
 
@@ -346,14 +353,14 @@ contract Swapper {
             address _requestee = _request.requestee;
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
             delete _requestPool[_requestee][_requestId];
-            Request[] memory _requesterOutbox = requesterOutbox[_requester];
-            Request[] memory _requesteeInbox = requesteeInbox[_request.requestee];
+            // uint[] memory _requesterOutbox = requesterOutbox[_requester];
+            // uint[] memory _requesteeInbox = requesteeInbox[_request.requestee];
             delete requesterOutbox[_requester];
-            removeRequest(location.outbox, _requester, _requesterOutbox, _requestId);
+            removeRequest(location.outbox, _requester, _requestId);
             delete requesteeInbox[_requestee];
-            removeRequest(location.inbox, _requestee, _requesteeInbox, _requestId);
-            userCanceledRequests[_requester].push(_request);
-            userCanceledRequests[_requestee].push(_request);
+            removeRequest(location.inbox, _requestee, _requestId);
+            userCanceledRequests[_requester].push(_request.requestId);
+            userCanceledRequests[_requestee].push(_request.requestId);
             // Return requester's NFT
             _requesterNft.safeTransferFrom(address(this), _request.requester, ownedNft.tokenId);
             emit CancelSwap(_requestId);
@@ -378,27 +385,27 @@ contract Swapper {
     // }
 
     // Getter for user inbox.
-    function fetchInbox(address _user) external view returns (Request[] memory) {
+    function fetchInbox(address _user) external view returns (uint[] memory) {
         return requesteeInbox[_user];
     }
 
     // Getter for user outbox.
-    function fetchOutbox(address _user) external view returns (Request[] memory) {
+    function fetchOutbox(address _user) external view returns (uint[] memory) {
         return requesterOutbox[_user];
     }
 
     // Getter for user accepted requests
-    function fetchAccepted(address _user) external view returns (Request[] memory) {
+    function fetchAccepted(address _user) external view returns (uint[] memory) {
         return userAcceptedRequests[_user];
     }
 
     // Getter for user rejected requests
-    function fetchRejected(address _user) external view returns (Request[] memory) {
+    function fetchRejected(address _user) external view returns (uint[] memory) {
         return userRejectedRequests[_user];
     }
 
     // Getter for user canceled requests.
-    function fetchCanceled(address _user) external view returns (Request[] memory) {
+    function fetchCanceled(address _user) external view returns (uint[] memory) {
         return userCanceledRequests[_user];
     }
 
