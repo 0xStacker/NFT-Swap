@@ -3,6 +3,8 @@ pragma solidity ^0.8.25;
 
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
+import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
+
 
 /**
  * @title NFT SWAP
@@ -15,7 +17,7 @@ import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
  * If party B rejects, party A's nft is returned to their wallet.
  * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
  */
-contract Swapper {
+contract Swapper is ReentrancyGuard, IERC721Receiver{
     // Universal inbox limit.
     uint8 constant REQUESTEE_INBOX_LIMIT = 10;
 
@@ -26,12 +28,12 @@ contract Swapper {
     // General request pool
     mapping(address _requestee => mapping(uint256 _requestId => Request)) public _requestPool;
 
-    mapping(address => mapping(uint => uint inboxRequestIndex)) inboxRequestIndexTracker;
+    mapping(address => mapping(uint256 => uint256 inboxRequestIndex)) inboxRequestIndexTracker;
 
     // Requestees' inbox
     mapping(address _requestee => uint256[]) public requesteeInbox;
 
-    mapping(address => mapping(uint => uint outboxRequestIndex)) outboxRequestIndexTracker;
+    mapping(address => mapping(uint256 => uint256 outboxRequestIndex)) outboxRequestIndexTracker;
 
     // Requesters' outbox
     mapping(address _requester => uint256[]) public requesterOutbox;
@@ -60,7 +62,7 @@ contract Swapper {
     error RequesteeInboxFull(uint8 size);
 
     // Events
-    event RequestSwap(uint256 _requestId);
+    event RequestSwap(address indexed _from, address _to, uint256 _requestId);
     event AcceptSwap(uint256 _requestId);
     event RejectSwap(uint256 _requestId);
     event CancelSwap(uint256 _requestId);
@@ -73,18 +75,17 @@ contract Swapper {
      * @notice Ensures that both requester and requestee owns the nfts required for the tx.
      * contract takes requester's nft into custody, gives the request an id and sends it to requestee's inbox.
      */
-
-    struct Nft{
+    struct Nft {
         address contractAddress;
-        uint tokenId;
+        uint256 tokenId;
     }
 
     struct RequestIn {
         address requestee;
         address[] ownedNfts;
         address[] requestedNfts;
-        uint[] ownedNftIds;
-        uint[] requestedNftIds;
+        uint256[] ownedNftIds;
+        uint256[] requestedNftIds;
     }
 
     struct Request {
@@ -93,13 +94,11 @@ contract Swapper {
         uint256 requestId;
         address[] ownedNfts;
         address[] requestedNfts;
-        uint[] ownedNftIds;
-        uint[] requestedNftIds;
+        uint256[] ownedNftIds;
+        uint256[] requestedNftIds;
     }
 
-
-    function requestNftSwapMulti(Request memory _request) internal{
-
+    function requestNftSwapMulti(Request memory _request) internal {
         /// DO ZERO CHECK HERE
 
         if (_request.requester == _request.requestee) {
@@ -112,25 +111,25 @@ contract Swapper {
         }
 
         // Ensure both requester and requestee own the nfts involved.
-        uint totalOwnedNfts = _request.ownedNfts.length;
-        uint totalRequestedNfts = _request.requestedNfts.length;
+        uint256 totalOwnedNfts = _request.ownedNfts.length;
+        uint256 totalRequestedNfts = _request.requestedNfts.length;
 
-        for (uint i; i < totalOwnedNfts; i++){
-            Nft memory ownedNft = Nft({ contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
+        for (uint256 i; i < totalOwnedNfts; i++) {
+            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
             if (_ownedNft.ownerOf(ownedNft.tokenId) != msg.sender) {
-            revert NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
+                revert NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
             }
         }
 
-        for (uint i; i < totalRequestedNfts; i++){
-            Nft memory requestedNft = Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
+        for (uint256 i; i < totalRequestedNfts; i++) {
+            Nft memory requestedNft =
+                Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
             IERC721 _requestedNft = IERC721(requestedNft.contractAddress);
             if (_requestedNft.ownerOf(requestedNft.tokenId) != msg.sender) {
-            revert NotOwnedByRequester(requestedNft.contractAddress, requestedNft.tokenId);
+                revert NotOwnedByRequester(requestedNft.contractAddress, requestedNft.tokenId);
             }
         }
-
 
         // Prevent spams.
         if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT) {
@@ -142,14 +141,13 @@ contract Swapper {
         requesterOutbox[msg.sender].push(_request.requestId);
         _nextRequestId++;
 
-        for(uint i; i <= totalOwnedNfts; i++){
-            Nft memory ownedNft = Nft({ contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
+        for (uint256 i; i <= totalOwnedNfts; i++) {
+            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             IERC721(ownedNft.contractAddress).safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
         }
 
-        emit RequestSwap(_request.requestId);
+        emit RequestSwap(_request.requester, _request.requestee, _request.requestId);
     }
-
 
     function requestNftSwap(RequestIn calldata _inRequest) external {
         Request memory _request = Request({
@@ -162,54 +160,51 @@ contract Swapper {
             requestedNftIds: _inRequest.requestedNftIds
         });
 
-        require(_request.ownedNfts.length == _request.ownedNftIds.length && _request.requestedNfts.length == _request.requestedNftIds.length, "Bad Request");
-        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1){
+        require(
+            _request.ownedNfts.length == _request.ownedNftIds.length
+                && _request.requestedNfts.length == _request.requestedNftIds.length,
+            "Bad Request"
+        );
+        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1) {
             requestNftSwapMulti(_request);
-        }
-
-        else{
+        } else {
             // Avoid looping unless its necessary
-            Nft memory requestedNft = Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
-            Nft memory ownedNft = Nft({ contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
+            Nft memory requestedNft =
+                Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
+            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
             if (requestedNft.contractAddress == address(0) || ownedNft.contractAddress == address(0)) {
-            revert InvalidAddress();
+                revert InvalidAddress();
+            }
+
+            if (_request.requester == _request.requestee) {
+                revert SelfRequest();
+            }
+
+            // Ensure that the requestee has approved the requester's address.
+            if (!approvedAddresses[_request.requestee][_request.requester]) {
+                revert NotApproved(_request.requester);
+            }
+
+            // Ensure requester own the nfts involved.
+            IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
+            if (_ownedNft.ownerOf(ownedNft.tokenId) != msg.sender) {
+                revert NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
+            }
+
+            // Prevent spams.
+            if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT) {
+                revert RequesteeInboxFull(10);
+            }
+            uint256 nextIndex = _nextRequestId;
+            _requestPool[_request.requestee][_request.requestId] = _request;
+            inboxRequestIndexTracker[_request.requestee][_request.requestId] = nextIndex;
+            outboxRequestIndexTracker[_request.requester][_request.requestId] = nextIndex;
+            requesteeInbox[_request.requestee].push(_request.requestId);
+            requesterOutbox[msg.sender].push(_request.requestId);
+            _nextRequestId++;
+            _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
+            emit RequestSwap(_request.requester, _request.requestee, _request.requestId);
         }
-
-        if (_request.requester == _request.requestee) {
-            revert SelfRequest();
-        }
-
-        // Ensure that the requestee has approved the requester's address.
-        if (!approvedAddresses[_request.requestee][_request.requester]) {
-            revert NotApproved(_request.requester);
-        }
-
-        // Ensure requester own the nfts involved.
-        IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
-        if (_ownedNft.ownerOf(ownedNft.tokenId) != msg.sender) {
-            revert NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
-        }
-
-        // IERC721 _requestedNft = IERC721(requestedNft.contractAddress);
-        // if (_requestedNft.ownerOf(requestedNft.tokenId) != _request.requestee) {
-        //     revert NotOwnedByRequestee(requestedNft.contractAddress, requestedNft.tokenId);
-        // }
-
-        // Prevent spams.
-        if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT) {
-            revert RequesteeInboxFull(10);
-        }
-
-        _requestPool[_request.requestee][_request.requestId] = _request;
-        inboxRequestIndexTracker[_request.requestee][_request.requestId] = _nextRequestId;
-        outboxRequestIndexTracker[_request.requester][_request.requestId] = _nextRequestId;
-        requesteeInbox[_request.requestee].push(_request.requestId);
-        requesterOutbox[msg.sender].push(_request.requestId);
-        _nextRequestId++;
-        _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
-        emit RequestSwap(_request.requestId);
-        }
-
     }
 
     /**
@@ -227,16 +222,16 @@ contract Swapper {
         address _requester = _request.requester;
         address _requestee = _request.requestee;
 
-        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1){
+        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1) {
             revert("Bad request");
-        }
-        else{
-            Nft memory requestedNft = Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
-            Nft memory ownedNft = Nft({ contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
+        } else {
+            Nft memory requestedNft =
+                Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
+            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
             IERC721 _requestedNft = IERC721(requestedNft.contractAddress);
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
-            uint _requestedNftId = requestedNft.tokenId;
-            uint _requesterNftId = ownedNft.tokenId;
+            uint256 _requestedNftId = requestedNft.tokenId;
+            uint256 _requesterNftId = ownedNft.tokenId;
 
             // Terminate exchange if party B no longer holds the NFT requested by party A
             if (_requestedNft.ownerOf(_requestedNftId) != msg.sender) {
@@ -245,23 +240,16 @@ contract Swapper {
                 userCanceledRequests[_requestee].push(_request.requestId);
             } else {
                 delete _requestPool[_requestee][_requestId]; //__ Add an accepted and rejected flag to request struct__//
-                // uint256[] memory userPending = requesteeInbox[_requestee];
-                // uint[] memory requesterPending = requesterOutbox[_requester];
-                // remove request from requestee pending and add it to accepted list.
-                // delete requesteeInbox[_requestee];
                 removeRequest(location.inbox, _requestee, _requestId);
                 userAcceptedRequests[_requestee].push(_request.requestId);
                 // remove request from requester pending and add it to accepted list
-                // delete requesterOutbox[_requester];
                 removeRequest(location.outbox, _requester, _requestId);
                 userAcceptedRequests[_requester].push(_request.requestId);
-                _requestedNft.safeTransferFrom(msg.sender, address(this), _requestedNftId); /// *****
+                _requestedNft.safeTransferFrom(msg.sender, _requester, _requestedNftId);
                 _requesterNft.safeTransferFrom(address(this), _requestee, _requesterNftId);
-                _requestedNft.safeTransferFrom(address(this), _requester, _requestedNftId);
                 emit AcceptSwap(_requestId);
             }
         }
-
     }
 
     /**
@@ -274,26 +262,17 @@ contract Swapper {
             revert BadRequest();
         }
 
-        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1){
+        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1) {
             revert("Bad request");
-        }
-
-        else{
-            Nft memory ownedNft = Nft({ contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
+        } else {
+            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
             address _requester = _request.requester;
             address _requestee = _request.requestee;
-
             delete _requestPool[_request.requestee][_requestId];
-            // Request[] memory userPending = requesteeInbox[_requestee];
-
             // remove request from pending and add it to rejected
-            // delete requesteeInbox[_request.requestee];
             removeRequest(location.inbox, _requestee, _requestId);
-
             // remove request from sender's outbox
-            // uint[] memory _requesterOutbox = requesterOutbox[_requester];
-            // delete requesterOutbox[_requester];
             removeRequest(location.outbox, _requester, _requestId);
             userRejectedRequests[_requestee].push(_request.requestId);
             userRejectedRequests[_requester].push(_request.requestId);
@@ -317,15 +296,15 @@ contract Swapper {
     function removeRequest(location _from, address _user, uint256 _requestId) internal {
         if (_from == location.outbox) {
             require(outboxRequestIndexTracker[_user][_requestId] != 0, "Item not in outbox");
-            uint itemIndex = --outboxRequestIndexTracker[_user][_requestId];
-            uint lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
+            uint256 itemIndex = --outboxRequestIndexTracker[_user][_requestId];
+            uint256 lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
             requesterOutbox[_user][itemIndex] = lastItem;
             requesterOutbox[_user].pop();
             outboxRequestIndexTracker[_user][_requestId] = 0;
         } else {
             require(inboxRequestIndexTracker[_user][_requestId] != 0, "Item not in inbox");
-            uint itemIndex = --inboxRequestIndexTracker[_user][_requestId];
-            uint lastItem = requesteeInbox[_user][requesteeInbox[_user].length - 1];
+            uint256 itemIndex = --inboxRequestIndexTracker[_user][_requestId];
+            uint256 lastItem = requesteeInbox[_user][requesteeInbox[_user].length - 1];
             requesteeInbox[_user][itemIndex] = lastItem;
             requesteeInbox[_user].pop();
             inboxRequestIndexTracker[_user][_requestId] = 0;
@@ -343,12 +322,10 @@ contract Swapper {
             revert BadRequest();
         }
 
-        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1){
+        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1) {
             revert("Bad request");
-        }
-
-        else{
-            Nft memory ownedNft = Nft({ contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
+        } else {
+            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
             address _requester = _request.requester;
             address _requestee = _request.requestee;
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
@@ -365,7 +342,6 @@ contract Swapper {
             _requesterNft.safeTransferFrom(address(this), _request.requester, ownedNft.tokenId);
             emit CancelSwap(_requestId);
         }
-
     }
 
     // function rejectAll() external {
@@ -385,27 +361,27 @@ contract Swapper {
     // }
 
     // Getter for user inbox.
-    function fetchInbox(address _user) external view returns (uint[] memory) {
+    function fetchInbox(address _user) external view returns (uint256[] memory) {
         return requesteeInbox[_user];
     }
 
     // Getter for user outbox.
-    function fetchOutbox(address _user) external view returns (uint[] memory) {
+    function fetchOutbox(address _user) external view returns (uint256[] memory) {
         return requesterOutbox[_user];
     }
 
     // Getter for user accepted requests
-    function fetchAccepted(address _user) external view returns (uint[] memory) {
+    function fetchAccepted(address _user) external view returns (uint256[] memory) {
         return userAcceptedRequests[_user];
     }
 
     // Getter for user rejected requests
-    function fetchRejected(address _user) external view returns (uint[] memory) {
+    function fetchRejected(address _user) external view returns (uint256[] memory) {
         return userRejectedRequests[_user];
     }
 
     // Getter for user canceled requests.
-    function fetchCanceled(address _user) external view returns (uint[] memory) {
+    function fetchCanceled(address _user) external view returns (uint256[] memory) {
         return userCanceledRequests[_user];
     }
 
