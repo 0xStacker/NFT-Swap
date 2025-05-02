@@ -13,14 +13,14 @@ contract SwapTest is Test {
     address user2 = address(234);
     address user3 = address(456);
     uint8 minted;
-    
+
     address[] _ownedNfts;
     address[] _requestedNfts;
     uint256[] _ownedNftIds;
     uint256[] _requestedNftIds;
     Swapper.RequestIn swapRequest1;
 
-    enum actor{
+    enum actor {
         REQUESTER,
         REQUESTEE
     }
@@ -48,22 +48,20 @@ contract SwapTest is Test {
 
     function _mintFromCollection1() internal {
         nft.mint();
-
     }
 
-    function _mintFromCollection2() internal{
+    function _mintFromCollection2() internal {
         nft2.mint();
     }
 
     function approveSwapper(address _user, actor _actor) internal {
         vm.startPrank(_user);
-        if(_actor == actor.REQUESTER){
-            for(uint i; i < _ownedNfts.length; i++){
+        if (_actor == actor.REQUESTER) {
+            for (uint256 i; i < _ownedNfts.length; i++) {
                 nft.approve(address(swapper), _ownedNftIds[i]);
             }
-        }
-        else{
-            for(uint i; i < _requestedNfts.length; i++){
+        } else {
+            for (uint256 i; i < _requestedNfts.length; i++) {
                 nft2.approve(address(swapper), _requestedNftIds[i]);
             }
         }
@@ -82,7 +80,7 @@ contract SwapTest is Test {
         _mintFromCollection2();
         _requestedNfts.push(address(nft2));
         _requestedNftIds.push(minted);
-        
+
         // Requestee approves requester
         vm.prank(user2);
         swapper.approve(user1);
@@ -107,7 +105,7 @@ contract SwapTest is Test {
         _mintFromCollection1();
         _ownedNfts.push(address(nft));
         _ownedNftIds.push(++minted);
-        
+
         // Requestee Mint
         vm.prank(user2);
         _mintFromCollection2();
@@ -179,7 +177,6 @@ contract SwapTest is Test {
         assertEq(swapper.fetchRejected(user1).length, 1);
     }
 
-
     function testRevertWhenPartyBTransferNftAmidstSwap() public {
         clearNftData();
         // Requester Mint
@@ -241,16 +238,16 @@ contract SwapTest is Test {
 
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
-        
+
         // Create swap order
         vm.prank(user1);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
         assertEq(swapper.fetchInbox(user2).length, 1);
         assertEq(swapper.fetchOutbox(user1).length, 1);
-        
+
         // Cancel swap order
         vm.startPrank(user1);
-        uint requestToCancel = swapper.fetchOutbox(user1)[0];
+        uint256 requestToCancel = swapper.fetchOutbox(user1)[0];
         swapper.cancelRequest(user2, requestToCancel);
         vm.stopPrank();
 
@@ -281,7 +278,6 @@ contract SwapTest is Test {
         vm.prank(user1);
         _mintFromCollection1();
 
-        
         // Requestee Mint 2
         vm.prank(user2);
         _mintFromCollection2();

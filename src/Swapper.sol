@@ -28,10 +28,10 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     mapping(address _requestee => mapping(uint256 _requestId => Request)) public _requestPool;
 
     mapping(address => mapping(uint256 => uint256 inboxRequestIndex)) inboxRequestIndexTracker;
-    
+
     mapping(address => uint256 nextIndex) inboxNextIndexTracker;
 
-    mapping(address => uint) outboxNextIndexTracker;
+    mapping(address => uint256) outboxNextIndexTracker;
 
     // Requestees' inbox
     mapping(address _requestee => uint256[]) public requesteeInbox;
@@ -97,7 +97,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     }
 
     modifier onlyRequestee(Request memory _request) {
-        if(msg.sender != _request.requestee) {
+        if (msg.sender != _request.requestee) {
             revert InvalidRequestee(msg.sender);
         }
         _;
@@ -153,7 +153,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
             if (_ownedNft.ownerOf(ownedNft.tokenId) != msg.sender) {
                 revert NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
-            } else{
+            } else {
                 IERC721(ownedNft.contractAddress).safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
             }
         }
@@ -169,11 +169,9 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         emit RequestNftSwapMulti(_request.requester, _request.requestee, _request.requestId);
     }
 
-    function acceptNftSwapMulti(Request memory _request) internal onlyRequestee(_request){
-
-        uint totalRequestedNfts = _request.requestedNfts.length;
-        uint totalOwnedNfts = _request.ownedNfts.length;
-
+    function acceptNftSwapMulti(Request memory _request) internal onlyRequestee(_request) {
+        uint256 totalRequestedNfts = _request.requestedNfts.length;
+        uint256 totalOwnedNfts = _request.ownedNfts.length;
 
         delete _requestPool[_request.requestee][_request.requestId]; //__ Add an accepted and rejected flag to request struct__//
         removeRequest(location.inbox, _request.requestee, _request.requestId);
@@ -182,7 +180,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         removeRequest(location.outbox, _request.requester, _request.requestId);
         userAcceptedRequests[_request.requester].push(_request.requestId);
 
-        for (uint i; i < totalRequestedNfts; i++){
+        for (uint256 i; i < totalRequestedNfts; i++) {
             Nft memory requestedNft =
                 Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
             IERC721 _requestedNft = IERC721(requestedNft.contractAddress);
@@ -190,13 +188,12 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
                 rejectRequest(_request.requestId);
                 userCanceledRequests[_request.requester].push(_request.requestId);
                 userCanceledRequests[_request.requestee].push(_request.requestId);
-                } 
-            else {
+            } else {
                 _requestedNft.safeTransferFrom(msg.sender, _request.requester, requestedNft.tokenId);
             }
         }
 
-        for(uint i; i < totalOwnedNfts; i++){
+        for (uint256 i; i < totalOwnedNfts; i++) {
             Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
             _ownedNft.safeTransferFrom(address(this), _request.requestee, ownedNft.tokenId);
@@ -211,7 +208,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
      * @notice Requester can cancel their request at any time before it is accepted or rejected.
      * contract takes requester's nft into custody, gives the request an id and sends it to requestee's inbox.
      */
-    function requestNftSwap(RequestIn calldata _inRequest) external payable{
+    function requestNftSwap(RequestIn calldata _inRequest) external payable {
         Request memory _request = Request({
             requestId: _nextRequestId++,
             requester: msg.sender,
@@ -268,7 +265,8 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             inboxNextIndexTracker[_request.requestee]++;
             _requestPool[_request.requestee][_request.requestId] = _request;
             inboxRequestIndexTracker[_request.requestee][_request.requestId] = inboxNextIndexTracker[_request.requestee];
-            outboxRequestIndexTracker[_request.requester][_request.requestId] = outboxNextIndexTracker[_request.requester];
+            outboxRequestIndexTracker[_request.requester][_request.requestId] =
+                outboxNextIndexTracker[_request.requester];
             requesteeInbox[_request.requestee].push(_request.requestId);
             requesterOutbox[msg.sender].push(_request.requestId);
             _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
@@ -344,7 +342,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         userRejectedRequests[_requestee].push(_request.requestId);
         userRejectedRequests[_requester].push(_request.requestId);
         // Return requester's NFT
-        for(uint i; i < _request.ownedNfts.length; i++){
+        for (uint256 i; i < _request.ownedNfts.length; i++) {
             Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
             _requesterNft.safeTransferFrom(address(this), _request.requester, ownedNft.tokenId);
@@ -401,7 +399,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         userCanceledRequests[_requester].push(_request.requestId);
         userCanceledRequests[_requestee].push(_request.requestId);
         // Return requester's NFT(s)
-        for(uint i; i < _request.ownedNfts.length; i++){
+        for (uint256 i; i < _request.ownedNfts.length; i++) {
             Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
             _requesterNft.safeTransferFrom(address(this), _request.requester, ownedNft.tokenId);
