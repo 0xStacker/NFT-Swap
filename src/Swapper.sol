@@ -334,24 +334,22 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             revert BadRequest();
         }
 
-        if (_request.requestedNfts.length > 1) {
-            revert("Bad request");
-        } else {
-            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
+        address _requester = _request.requester;
+        address _requestee = _request.requestee;
+        delete _requestPool[_request.requestee][_requestId];
+        // remove request from pending and add it to rejected
+        removeRequest(location.inbox, _requestee, _requestId);
+        // remove request from sender's outbox
+        removeRequest(location.outbox, _requester, _requestId);
+        userRejectedRequests[_requestee].push(_request.requestId);
+        userRejectedRequests[_requester].push(_request.requestId);
+        // Return requester's NFT
+        for(uint i; i < _request.ownedNfts.length; i++){
+            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
-            address _requester = _request.requester;
-            address _requestee = _request.requestee;
-            delete _requestPool[_request.requestee][_requestId];
-            // remove request from pending and add it to rejected
-            removeRequest(location.inbox, _requestee, _requestId);
-            // remove request from sender's outbox
-            removeRequest(location.outbox, _requester, _requestId);
-            userRejectedRequests[_requestee].push(_request.requestId);
-            userRejectedRequests[_requester].push(_request.requestId);
-            // Return requester's NFT
             _requesterNft.safeTransferFrom(address(this), _request.requester, ownedNft.tokenId);
-            emit RejectSwap(_requestId);
         }
+        emit RejectSwap(_requestId);
     }
 
     enum location {
@@ -395,27 +393,20 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         if (_isEmpty(_request)) {
             revert BadRequest();
         }
-
-        if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1) {
-            revert("Bad request");
-        } else {
-            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
-            address _requester = _request.requester;
-            address _requestee = _request.requestee;
+        address _requester = _request.requester;
+        address _requestee = _request.requestee;
+        delete _requestPool[_requestee][_requestId];
+        removeRequest(location.outbox, _requester, _requestId);
+        removeRequest(location.inbox, _requestee, _requestId);
+        userCanceledRequests[_requester].push(_request.requestId);
+        userCanceledRequests[_requestee].push(_request.requestId);
+        // Return requester's NFT(s)
+        for(uint i; i < _request.ownedNfts.length; i++){
+            Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
-            delete _requestPool[_requestee][_requestId];
-            // uint[] memory _requesterOutbox = requesterOutbox[_requester];
-            // uint[] memory _requesteeInbox = requesteeInbox[_request.requestee];
-            delete requesterOutbox[_requester];
-            removeRequest(location.outbox, _requester, _requestId);
-            delete requesteeInbox[_requestee];
-            removeRequest(location.inbox, _requestee, _requestId);
-            userCanceledRequests[_requester].push(_request.requestId);
-            userCanceledRequests[_requestee].push(_request.requestId);
-            // Return requester's NFT
             _requesterNft.safeTransferFrom(address(this), _request.requester, ownedNft.tokenId);
-            emit CancelSwap(_requestId);
         }
+        emit CancelSwap(_requestId);
     }
 
     // Getter for user inbox.
