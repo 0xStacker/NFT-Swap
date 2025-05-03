@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.29;
+pragma solidity ^0.8.15;
 
 interface ISwapperErrors {
     error Swapper__NotOwnedByRequester(address _nft, uint256 _id);
     error Swapper__NotOwnedByRequestee(address _nft, uint256 _id);
-    error Swapper__SelfRequest();
+    error Swapper__SelfOrder();
     error Swapper__InvalidAddress();
     error Swapper__NotApproved(address requester);
-    error Swapper__BadRequest();
-    error Swapper__InvalidRequestee(address impersonator);
-    error Swapper__RequesteeInboxFull(uint8 size);
+    error Swapper__BadOrder();
+    error Swapper__InvalidFufiller(address impersonator);
+    error Swapper__FufillerInboxFull(uint8 size);
     error Swapper__NotAdmin(address _user);
+
+    event CreateSwapOrder(address indexed _from, address _to, uint256 _requestId);
+    event CreateSwapOrderMulti(address indexed _from, address _to, uint256 _requestId);
+    event AcceptSwapOrder(uint256 _requestId);
+    event RejectSwapOrder(uint256 _requestId);
+    event CancelSwapOrder(uint256 _requestId);
 }
