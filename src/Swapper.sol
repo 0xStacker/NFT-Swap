@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity 0.8.29;
 
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
@@ -18,25 +18,33 @@ import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
  */
 contract Swapper is ReentrancyGuard, IERC721Receiver {
     // Universal inbox limit.
-    uint8 constant REQUESTEE_INBOX_LIMIT = 10;
+    uint8 constant internal REQUESTEE_INBOX_LIMIT = 10;
+    // Admin address.
+    address public admin;
 
-    uint8 constant MAX_TRADEABLE_NFT = 15;
-
+    // Maximum number of nfts that can be included in a single transaction.
+    uint8 constant internal MAX_TRADEABLE_NFT = 15;
+    
+    // Order id counter. 
     uint256 internal _nextRequestId = 1;
 
     // General request pool
     mapping(address _requestee => mapping(uint256 _requestId => Request)) public _requestPool;
 
-    mapping(address => mapping(uint256 => uint256 inboxRequestIndex)) inboxRequestIndexTracker;
+    // Keep track of order index inside user inbox for easier removal after completion.
+    mapping(address => mapping(uint256 => uint256 inboxRequestIndex)) public inboxRequestIndexTracker;
 
-    mapping(address => uint256 nextIndex) inboxNextIndexTracker;
-
-    mapping(address => uint256) outboxNextIndexTracker;
+    // Keep track of order index inside user outbox for easier removal after completion.
+    mapping(address => mapping(uint256 => uint256 outboxRequestIndex)) private outboxRequestIndexTracker;
+   
+   // Assign index to the next request in the inbox
+    mapping(address => uint256 nextIndex) private inboxNextIndexTracker;
+    
+    // Assign index to the next request in the outbox
+    mapping(address => uint256) private outboxNextIndexTracker;
 
     // Requestees' inbox
     mapping(address _requestee => uint256[]) public requesteeInbox;
-
-    mapping(address => mapping(uint256 => uint256 outboxRequestIndex)) outboxRequestIndexTracker;
 
     // Requesters' outbox
     mapping(address _requester => uint256[]) public requesterOutbox;
@@ -63,6 +71,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     error BadRequest();
     error InvalidRequestee(address impersonator);
     error RequesteeInboxFull(uint8 size);
+    error NotAdmin(address _user);
 
     // Events
     event RequestSwap(address indexed _from, address _to, uint256 _requestId);
@@ -103,7 +112,16 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         _;
     }
 
-    constructor() ReentrancyGuard() {}
+    modifier onlyAdmin() {
+        if (msg.sender != admin) {
+            revert NotAdmin(msg.sender);
+        }
+        _;
+    }
+
+    constructor(address _admin) ReentrancyGuard() {
+        admin = _admin;
+    }
 
     /// @dev Check if the contract supports the ERC721 interface
     function checkERC721InterfaceSupport(address _nft) internal view returns (bool) {
@@ -116,8 +134,9 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
 
     /**
      * @dev Initiate an nft swap that involves multiple nfts.
+     * @param _request holds the request data. see Request struct.
      */
-    function requestNftSwapMulti(Request memory _request) internal nonReentrant {
+    function createSwapOrderMulti(Request memory _request) internal nonReentrant {
         if (
             _request.ownedNfts.length != _request.ownedNftIds.length
                 && _request.requestedNfts.length != _request.requestedNftIds.length
@@ -141,6 +160,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             revert RequesteeInboxFull(10);
         }
 
+        // Contract takes custody of the requester's nfts.
         for (uint256 i; i < totalOwnedNfts; i++) {
             Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             if (ownedNft.contractAddress == address(0)) {
@@ -169,30 +189,40 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         emit RequestNftSwapMulti(_request.requester, _request.requestee, _request.requestId);
     }
 
-    function acceptNftSwapMulti(Request memory _request) internal onlyRequestee(_request) {
+    /**
+     * @dev Accept an incoming request that involves multiple nfts.
+     * @param _request holds the request data. see Request struct.
+     * @notice Only the requestee provided in the request data can accept the request
+     * @notice Automatically rejects if the requestee no longer hold the required nft.
+     */
+
+    function fufilSwapOrderMulti(Request memory _request) internal onlyRequestee(_request) {
         uint256 totalRequestedNfts = _request.requestedNfts.length;
         uint256 totalOwnedNfts = _request.ownedNfts.length;
 
         delete _requestPool[_request.requestee][_request.requestId]; //__ Add an accepted and rejected flag to request struct__//
-        removeRequest(location.inbox, _request.requestee, _request.requestId);
+
+        // remove request from inbox and add it to their accepted list
+        removeOrder(Location.inbox, _request.requestee, _request.requestId);
         userAcceptedRequests[_request.requestee].push(_request.requestId);
-        // remove request from requester pending and add it to accepted list
-        removeRequest(location.outbox, _request.requester, _request.requestId);
+        // remove request from requester outbox and add it to their accepted list
+        removeOrder(Location.outbox, _request.requester, _request.requestId);
         userAcceptedRequests[_request.requester].push(_request.requestId);
 
+        // Fufil swap order
         for (uint256 i; i < totalRequestedNfts; i++) {
             Nft memory requestedNft =
                 Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
             IERC721 _requestedNft = IERC721(requestedNft.contractAddress);
             if (_requestedNft.ownerOf(requestedNft.tokenId) != msg.sender) {
-                rejectRequest(_request.requestId);
+                rejectOrder(_request.requestId);
                 userCanceledRequests[_request.requester].push(_request.requestId);
                 userCanceledRequests[_request.requestee].push(_request.requestId);
             } else {
                 _requestedNft.safeTransferFrom(msg.sender, _request.requester, requestedNft.tokenId);
             }
         }
-
+        
         for (uint256 i; i < totalOwnedNfts; i++) {
             Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
@@ -208,7 +238,8 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
      * @notice Requester can cancel their request at any time before it is accepted or rejected.
      * contract takes requester's nft into custody, gives the request an id and sends it to requestee's inbox.
      */
-    function requestNftSwap(RequestIn calldata _inRequest) external payable {
+    function createSwapOrder(RequestIn calldata _inRequest) external payable {
+        // Configure order data (Assign requestId).
         Request memory _request = Request({
             requestId: _nextRequestId++,
             requester: msg.sender,
@@ -219,6 +250,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             requestedNftIds: _inRequest.requestedNftIds
         });
 
+        // Ensure order data is valid.
         if (
             _request.ownedNfts.length != _request.ownedNftIds.length
                 && _request.requestedNfts.length != _request.requestedNftIds.length
@@ -226,8 +258,9 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             revert BadRequest();
         }
 
+        // Handle orders involving miultiple nfts.
         if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1) {
-            requestNftSwapMulti(_request);
+            createSwapOrderMulti(_request);
         } else {
             // Avoid looping unless its necessary
             Nft memory requestedNft =
@@ -261,12 +294,13 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
                 revert RequesteeInboxFull(10);
             }
 
+            // Create and store swap order
             outboxNextIndexTracker[_request.requester]++;
             inboxNextIndexTracker[_request.requestee]++;
             _requestPool[_request.requestee][_request.requestId] = _request;
             inboxRequestIndexTracker[_request.requestee][_request.requestId] = inboxNextIndexTracker[_request.requestee];
             outboxRequestIndexTracker[_request.requester][_request.requestId] =
-                outboxNextIndexTracker[_request.requester];
+            outboxNextIndexTracker[_request.requester];
             requesteeInbox[_request.requestee].push(_request.requestId);
             requesterOutbox[msg.sender].push(_request.requestId);
             _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
@@ -280,7 +314,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
      * @notice Only the requestee provided in the request data can accept the request
      * @notice Automatically rejects if the requestee no longer hold the required nft.
      */
-    function acceptRequest(uint256 _requestId) external onlyRequestee(getRequest(_requestId)) {
+    function fufilSwapOrder(uint256 _requestId) external onlyRequestee(getRequest(_requestId)) {
         Request memory _request = _requestPool[msg.sender][_requestId];
         if (_isEmpty(_request)) {
             revert BadRequest();
@@ -288,9 +322,10 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
 
         address _requester = _request.requester;
         address _requestee = _request.requestee;
-
+        
+        // Handle orders involving multiple nfts.
         if (_request.ownedNfts.length > 1 || _request.requestedNfts.length > 1) {
-            acceptNftSwapMulti(_request);
+            fufilSwapOrderMulti(_request);
         } else {
             Nft memory requestedNft =
                 Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
@@ -300,21 +335,24 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             uint256 _requestedNftId = requestedNft.tokenId;
             uint256 _requesterNftId = ownedNft.tokenId;
 
-            // Terminate exchange if party B no longer holds the NFT requested by party A
+            // Terminate order if party B no longer holds the NFT requested by party A
             if (_requestedNft.ownerOf(_requestedNftId) != msg.sender) {
-                rejectRequest(_requestId);
+                rejectOrder(_requestId);
                 userCanceledRequests[_requester].push(_request.requestId);
                 userCanceledRequests[_requestee].push(_request.requestId);
             } else {
-                delete _requestPool[_requestee][_requestId]; //__ Add an accepted and rejected flag to request struct__//
-                removeRequest(location.inbox, _requestee, _requestId);
+                delete _requestPool[_requestee][_requestId]; // FIX: Add an accepted and rejected flag to request struct
+                
+                // Remove order from requestee inbox and add it to accepted list
+                removeOrder(Location.inbox, _requestee, _requestId);
                 userAcceptedRequests[_requestee].push(_request.requestId);
 
-                // remove request from requester pending and add it to accepted list
-                removeRequest(location.outbox, _requester, _requestId);
+                // remove order from requester outbox and add it to accepted list
+                removeOrder(Location.outbox, _requester, _requestId);
 
                 userAcceptedRequests[_requester].push(_request.requestId);
-
+                
+                // Fufil swap order
                 _requestedNft.safeTransferFrom(msg.sender, _requester, _requestedNftId);
                 _requesterNft.safeTransferFrom(address(this), _requestee, _requesterNftId);
                 emit AcceptSwap(_requestId);
@@ -326,7 +364,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
      * @dev Reject an incoming request.
      * @param _requestId is the identifier for the request.
      */
-    function rejectRequest(uint256 _requestId) public {
+    function rejectOrder(uint256 _requestId) public {
         Request memory _request = _requestPool[msg.sender][_requestId];
         if (_isEmpty(_request)) {
             revert BadRequest();
@@ -335,10 +373,11 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         address _requester = _request.requester;
         address _requestee = _request.requestee;
         delete _requestPool[_request.requestee][_requestId];
-        // remove request from pending and add it to rejected
-        removeRequest(location.inbox, _requestee, _requestId);
-        // remove request from sender's outbox
-        removeRequest(location.outbox, _requester, _requestId);
+        // remove order from requestee's inbox and add it to their rejected list
+        removeOrder(Location.inbox, _requestee, _requestId);
+        // remove order from requester's outbox and add it to their rejected list
+        removeOrder(Location.outbox, _requester, _requestId);
+        
         userRejectedRequests[_requestee].push(_request.requestId);
         userRejectedRequests[_requester].push(_request.requestId);
         // Return requester's NFT
@@ -350,19 +389,20 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         emit RejectSwap(_requestId);
     }
 
-    enum location {
+    enum Location {
         outbox,
         inbox
     }
 
     /**
-     * @dev remove a request from inbox or outbox of a user.
-     * @param _from is the location to delete from (inbox or outbox).
+     * @dev remove a request from inbox or outbox of a user by swapping it with the last item in the array, then popping the last item.
+     * @param _from is the Location to delete from (inbox or outbox).
      * @param _user is the user's address.
      * @param _requestId is the unique identifier for the request.
      */
-    function removeRequest(location _from, address _user, uint256 _requestId) internal {
-        if (_from == location.outbox) {
+    function removeOrder(Location _from, address _user, uint256 _requestId) internal {
+
+        if (_from == Location.outbox) {
             require(outboxRequestIndexTracker[_user][_requestId] != 0, "Item not in outbox");
             uint256 itemIndex = --outboxRequestIndexTracker[_user][_requestId];
             uint256 lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
@@ -386,7 +426,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
      * @param _requestId is the identifier of the request.
      * @notice A requester can only cancel their request if the requestee has not accepted or rejected the request at their end.
      */
-    function cancelRequest(address _to, uint256 _requestId) external {
+    function cancelOrder(address _to, uint256 _requestId) external {
         Request memory _request = _requestPool[_to][_requestId];
         if (_isEmpty(_request)) {
             revert BadRequest();
@@ -394,8 +434,8 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
         address _requester = _request.requester;
         address _requestee = _request.requestee;
         delete _requestPool[_requestee][_requestId];
-        removeRequest(location.outbox, _requester, _requestId);
-        removeRequest(location.inbox, _requestee, _requestId);
+        removeOrder(Location.outbox, _requester, _requestId);
+        removeOrder(Location.inbox, _requestee, _requestId);
         userCanceledRequests[_requester].push(_request.requestId);
         userCanceledRequests[_requestee].push(_request.requestId);
         // Return requester's NFT(s)
@@ -405,6 +445,12 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             _requesterNft.safeTransferFrom(address(this), _request.requester, ownedNft.tokenId);
         }
         emit CancelSwap(_requestId);
+    }
+
+    function withdrawFees(address payable _fundsReceipieint, uint _amount) external onlyAdmin{
+        require(_amount <= address(this).balance, "Insufficient balance");
+        (bool success, ) = _fundsReceipieint.call{value: _amount}("");
+        require(success, "Withdrawal failed");
     }
 
     // Getter for user inbox.
