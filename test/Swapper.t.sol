@@ -38,7 +38,7 @@ contract SwapTest is Test {
         uint256[] memory _ownedTokenId,
         uint256[] memory _requestedTokenId
     ) internal {
-        swapRequest1.requestee = _requestee;
+        swapRequest1.fufiller = _requestee;
         swapRequest1.ownedNfts = _ownedNft;
         swapRequest1.requestedNfts = _requestedNft;
         swapRequest1.ownedNftIds = _ownedTokenId;
@@ -94,8 +94,8 @@ contract SwapTest is Test {
 
         // Verify swap order
         assertEq(nft.ownerOf(1), address(swapper));
-        assertEq(swapper.fetchInbox(user2).length, 1);
-        assertEq(swapper.fetchOutbox(user1).length, 1);
+        assertEq(swapper.fetchOrderInbox(user2).length, 1);
+        assertEq(swapper.fetchOrderOutbox(user1).length, 1);
     }
 
     function testRequestSwapAndAccept() public {
@@ -127,15 +127,15 @@ contract SwapTest is Test {
         // Fufil swap order
         approveSwapper(user2, actor.REQUESTEE);
         vm.startPrank(user2);
-        swapper.fufilSwapOrder(swapper.fetchInbox(user2)[0]);
+        swapper.fufilSwapOrder(swapper.fetchOrderInbox(user2)[0]);
         vm.stopPrank();
         // Verify swap order
         assertEq(nft.ownerOf(1), user2);
         assertEq(nft2.ownerOf(1), user1);
-        assertEq(swapper.fetchInbox(user2).length, 0);
-        assertEq(swapper.fetchOutbox(user1).length, 0);
-        assertEq(swapper.fetchAccepted(user2).length, 1);
-        assertEq(swapper.fetchAccepted(user1).length, 1);
+        assertEq(swapper.fetchOrderInbox(user2).length, 0);
+        assertEq(swapper.fetchOrderOutbox(user1).length, 0);
+        assertEq(swapper.fetchAcceptedOrders(user2).length, 1);
+        assertEq(swapper.fetchAcceptedOrders(user1).length, 1);
     }
 
     function testRequestSwapAndReject() public {
@@ -167,14 +167,14 @@ contract SwapTest is Test {
 
         // Fufil swap order
         vm.startPrank(user2);
-        swapper.rejectOrder(swapper.fetchInbox(user2)[0]);
+        swapper.rejectOrder(swapper.fetchOrderInbox(user2)[0]);
         vm.stopPrank();
 
         // Verify swap order
         assertEq(nft.ownerOf(1), user1);
         assertEq(nft2.ownerOf(1), user2);
-        assertEq(swapper.fetchRejected(user2).length, 1);
-        assertEq(swapper.fetchRejected(user1).length, 1);
+        assertEq(swapper.fetchRejectedOrders(user2).length, 1);
+        assertEq(swapper.fetchRejectedOrders(user1).length, 1);
     }
 
     function testRevertWhenPartyBTransferNftAmidstSwap() public {
@@ -200,22 +200,22 @@ contract SwapTest is Test {
         vm.prank(user1);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
         assertEq(nft.ownerOf(1), address(swapper));
-        assertEq(swapper.fetchInbox(user2).length, 1);
+        assertEq(swapper.fetchOrderInbox(user2).length, 1);
 
         // User 2 transfers NFT 2 to user 3
         vm.startPrank(user2);
         nft2.transferFrom(user2, user3, 1);
 
         // User 2 attempts to fufil swap order
-        swapper.fufilSwapOrder(swapper.fetchInbox(user2)[0]);
+        swapper.fufilSwapOrder(swapper.fetchOrderInbox(user2)[0]);
         vm.stopPrank();
 
         // Verify swap order
         assertEq(nft.ownerOf(1), user1);
-        assertEq(swapper.fetchInbox(user2).length, 0);
-        assertEq(swapper.fetchOutbox(user1).length, 0);
-        assertEq(swapper.fetchCanceled(user2).length, 1);
-        assertEq(swapper.fetchCanceled(user1).length, 1);
+        assertEq(swapper.fetchOrderInbox(user2).length, 0);
+        assertEq(swapper.fetchOrderOutbox(user1).length, 0);
+        assertEq(swapper.fetchCanceledOrders(user2).length, 1);
+        assertEq(swapper.fetchCanceledOrders(user1).length, 1);
     }
 
     function testCancelRequest() public {
@@ -242,21 +242,21 @@ contract SwapTest is Test {
         // Create swap order
         vm.prank(user1);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
-        assertEq(swapper.fetchInbox(user2).length, 1);
-        assertEq(swapper.fetchOutbox(user1).length, 1);
+        assertEq(swapper.fetchOrderInbox(user2).length, 1);
+        assertEq(swapper.fetchOrderOutbox(user1).length, 1);
 
         // Cancel swap order
         vm.startPrank(user1);
-        uint256 requestToCancel = swapper.fetchOutbox(user1)[0];
+        uint256 requestToCancel = swapper.fetchOrderOutbox(user1)[0];
         swapper.cancelOrder(user2, requestToCancel);
         vm.stopPrank();
 
         // Verify swap order
         assertEq(nft.ownerOf(1), user1);
-        assertEq(swapper.fetchInbox(user2).length, 0);
-        assertEq(swapper.fetchInbox(user1).length, 0);
-        assertEq(swapper.fetchCanceled(user2).length, 1);
-        assertEq(swapper.fetchCanceled(user1).length, 1);
+        assertEq(swapper.fetchOrderInbox(user2).length, 0);
+        assertEq(swapper.fetchOrderInbox(user1).length, 0);
+        assertEq(swapper.fetchCanceledOrders(user2).length, 1);
+        assertEq(swapper.fetchCanceledOrders(user1).length, 1);
     }
 
     function testRevertRevokeApproval() public {
