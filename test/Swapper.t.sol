@@ -43,7 +43,7 @@ contract SwapTest is Test {
         swapRequest1.requestedNfts = _requestedNft;
         swapRequest1.ownedNftIds = _ownedTokenId;
         swapRequest1.requestedNftIds = _requestedTokenId;
-        swapper.requestNftSwap(swapRequest1);
+        swapper.createSwapOrder(swapRequest1);
     }
 
     function _mintFromCollection1() internal {
@@ -127,7 +127,7 @@ contract SwapTest is Test {
         // Fufil swap order
         approveSwapper(user2, actor.REQUESTEE);
         vm.startPrank(user2);
-        swapper.acceptRequest(swapper.fetchInbox(user2)[0]);
+        swapper.fufilSwapOrder(swapper.fetchInbox(user2)[0]);
         vm.stopPrank();
         // Verify swap order
         assertEq(nft.ownerOf(1), user2);
@@ -167,7 +167,7 @@ contract SwapTest is Test {
 
         // Fufil swap order
         vm.startPrank(user2);
-        swapper.rejectRequest(swapper.fetchInbox(user2)[0]);
+        swapper.rejectOrder(swapper.fetchInbox(user2)[0]);
         vm.stopPrank();
 
         // Verify swap order
@@ -207,7 +207,7 @@ contract SwapTest is Test {
         nft2.transferFrom(user2, user3, 1);
 
         // User 2 attempts to fufil swap order
-        swapper.acceptRequest(swapper.fetchInbox(user2)[0]);
+        swapper.fufilSwapOrder(swapper.fetchInbox(user2)[0]);
         vm.stopPrank();
 
         // Verify swap order
@@ -248,7 +248,7 @@ contract SwapTest is Test {
         // Cancel swap order
         vm.startPrank(user1);
         uint256 requestToCancel = swapper.fetchOutbox(user1)[0];
-        swapper.cancelRequest(user2, requestToCancel);
+        swapper.cancelOrder(user2, requestToCancel);
         vm.stopPrank();
 
         // Verify swap order
