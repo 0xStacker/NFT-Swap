@@ -4,6 +4,7 @@ pragma solidity 0.8.29;
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
 import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
+import {ISwapperErrors} from "./ISwapperErrors.sol";
 
 /**
  * @title NFT SWAP
@@ -16,7 +17,7 @@ import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
  * If party B rejects, party A's nft is returned to their wallet.
  * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
  */
-contract Swapper is ReentrancyGuard, IERC721Receiver {
+contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors{
     // Universal inbox limit.
     uint8 constant internal REQUESTEE_INBOX_LIMIT = 10;
     // Admin address.
@@ -62,16 +63,6 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     // to prevent spams.
     mapping(address _requestee => mapping(address _requester => bool)) public approvedAddresses;
 
-    // Errors
-    error NotOwnedByRequester(address _nft, uint256 _id);
-    error NotOwnedByRequestee(address _nft, uint256 _id);
-    error SelfRequest();
-    error InvalidAddress();
-    error NotApproved(address requester);
-    error BadRequest();
-    error InvalidRequestee(address impersonator);
-    error RequesteeInboxFull(uint8 size);
-    error NotAdmin(address _user);
 
     // Events
     event RequestSwap(address indexed _from, address _to, uint256 _requestId);
@@ -107,14 +98,14 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
 
     modifier onlyRequestee(Request memory _request) {
         if (msg.sender != _request.requestee) {
-            revert InvalidRequestee(msg.sender);
+            revert Swapper__InvalidRequestee(msg.sender);
         }
         _;
     }
 
     modifier onlyAdmin() {
         if (msg.sender != admin) {
-            revert NotAdmin(msg.sender);
+            revert Swapper__NotAdmin(msg.sender);
         }
         _;
     }
@@ -122,6 +113,8 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     constructor(address _admin) ReentrancyGuard() {
         admin = _admin;
     }
+
+    receive() external payable{}
 
     /// @dev Check if the contract supports the ERC721 interface
     function checkERC721InterfaceSupport(address _nft) internal view returns (bool) {
@@ -133,7 +126,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     }
 
     /**
-     * @dev Initiate an nft swap that involves multiple nfts.
+     * @dev Initiate an nft swap order that involves multiple nfts.
      * @param _request holds the request data. see Request struct.
      */
     function createSwapOrderMulti(Request memory _request) internal nonReentrant {
@@ -141,38 +134,38 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             _request.ownedNfts.length != _request.ownedNftIds.length
                 && _request.requestedNfts.length != _request.requestedNftIds.length
         ) {
-            revert BadRequest();
+            revert Swapper__BadRequest();
         }
 
         if (_request.requester == _request.requestee) {
-            revert SelfRequest();
+            revert Swapper__SelfRequest();
         }
 
         // Ensure that the requestee has approved the requester's address.
         if (!approvedAddresses[_request.requestee][_request.requester]) {
-            revert NotApproved(_request.requester);
+            revert Swapper__NotApproved(_request.requester);
         }
 
         // Ensure requester own the nfts involved.
         uint256 totalOwnedNfts = _request.ownedNfts.length;
 
         if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT) {
-            revert RequesteeInboxFull(10);
+            revert Swapper__RequesteeInboxFull(10);
         }
 
         // Contract takes custody of the requester's nfts.
         for (uint256 i; i < totalOwnedNfts; i++) {
             Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[i], tokenId: _request.ownedNftIds[i]});
             if (ownedNft.contractAddress == address(0)) {
-                revert BadRequest();
+                revert Swapper__BadRequest();
             }
 
             if (!checkERC721InterfaceSupport(ownedNft.contractAddress)) {
-                revert BadRequest();
+                revert Swapper__BadRequest();
             }
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
             if (_ownedNft.ownerOf(ownedNft.tokenId) != msg.sender) {
-                revert NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
+                revert Swapper__NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
             } else {
                 IERC721(ownedNft.contractAddress).safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
             }
@@ -255,7 +248,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
             _request.ownedNfts.length != _request.ownedNftIds.length
                 && _request.requestedNfts.length != _request.requestedNftIds.length
         ) {
-            revert BadRequest();
+            revert Swapper__BadRequest();
         }
 
         // Handle orders involving miultiple nfts.
@@ -267,31 +260,31 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
                 Nft({contractAddress: _request.requestedNfts[0], tokenId: _request.requestedNftIds[0]});
             Nft memory ownedNft = Nft({contractAddress: _request.ownedNfts[0], tokenId: _request.ownedNftIds[0]});
             if (requestedNft.contractAddress == address(0) || ownedNft.contractAddress == address(0)) {
-                revert InvalidAddress();
+                revert Swapper__InvalidAddress();
             }
 
             if (_request.requester == _request.requestee) {
-                revert SelfRequest();
+                revert Swapper__SelfRequest();
             }
 
             // Ensure that the requestee has approved the requester's address.
             if (!approvedAddresses[_request.requestee][_request.requester]) {
-                revert NotApproved(_request.requester);
+                revert Swapper__NotApproved(_request.requester);
             }
 
             if (!checkERC721InterfaceSupport(ownedNft.contractAddress)) {
-                revert BadRequest();
+                revert Swapper__BadRequest();
             }
 
             // Ensure requester own the nfts involved.
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
             if (_ownedNft.ownerOf(ownedNft.tokenId) != msg.sender) {
-                revert NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
+                revert Swapper__NotOwnedByRequester(ownedNft.contractAddress, ownedNft.tokenId);
             }
 
             // Prevent spams.
             if (requesteeInbox[_request.requestee].length == REQUESTEE_INBOX_LIMIT) {
-                revert RequesteeInboxFull(10);
+                revert Swapper__RequesteeInboxFull(10);
             }
 
             // Create and store swap order
@@ -317,7 +310,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     function fufilSwapOrder(uint256 _requestId) external onlyRequestee(getRequest(_requestId)) {
         Request memory _request = _requestPool[msg.sender][_requestId];
         if (_isEmpty(_request)) {
-            revert BadRequest();
+            revert Swapper__BadRequest();
         }
 
         address _requester = _request.requester;
@@ -367,7 +360,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     function rejectOrder(uint256 _requestId) public {
         Request memory _request = _requestPool[msg.sender][_requestId];
         if (_isEmpty(_request)) {
-            revert BadRequest();
+            revert Swapper__BadRequest();
         }
 
         address _requester = _request.requester;
@@ -429,7 +422,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver {
     function cancelOrder(address _to, uint256 _requestId) external {
         Request memory _request = _requestPool[_to][_requestId];
         if (_isEmpty(_request)) {
-            revert BadRequest();
+            revert Swapper__BadRequest();
         }
         address _requester = _request.requester;
         address _requestee = _request.requestee;
