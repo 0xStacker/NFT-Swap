@@ -14,7 +14,7 @@ interface ISwapperErrors {
 
     event CreateSwapOrder(address indexed _from, address _to, uint256 _requestId);
     event CreateSwapOrderMulti(address indexed _from, address _to, uint256 _requestId);
-    event AcceptSwapOrder(uint256 _requestId);
+    event FufillSwapOrder(uint256 _requestId);
     event RejectSwapOrder(uint256 _requestId);
     event CancelSwapOrder(uint256 _requestId);
 }
