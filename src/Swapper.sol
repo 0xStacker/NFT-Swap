@@ -21,6 +21,8 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
     // Universal inbox limit.
     uint8 internal constant FUFILLER_INBOX_LIMIT = 10;
 
+    uint8 internal pause;
+
     // Maximum number of nfts that can be included in a single transaction.
     uint8 internal constant MAX_TRADEABLE_NFT = 15;
 
@@ -63,6 +65,8 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
     // User's approved addresses. Only adresses aproved by user can send nft swap requests.
 
     mapping(address _fufiller => mapping(address _requester => bool)) public approvedAddresses;
+
+
 
     // Events
 
@@ -217,7 +221,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
             _ownedNft.safeTransferFrom(address(this), _order.fufiller, ownedNft.tokenId);
         }
-        emit AcceptSwapOrder(_order.orderId);
+        emit FufillSwapOrder(_order.orderId);
     }
 
     /**
@@ -344,7 +348,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
                 // Fufil swap order
                 _requestedNft.safeTransferFrom(msg.sender, _requester, _requestedNftId);
                 _requesterNft.safeTransferFrom(address(this), _fufiller, _requesterNftId);
-                emit AcceptSwapOrder(_orderId);
+                emit FufillSwapOrder(_orderId);
             }
         }
     }
@@ -391,17 +395,21 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
      */
     function removeOrder(Location _from, address _user, uint256 _orderId) internal {
         if (_from == Location.outbox) {
+            // Locate order index
             require(outboxRequestIndexTracker[_user][_orderId] != 0, "Item not in outbox");
             uint256 itemIndex = --outboxRequestIndexTracker[_user][_orderId];
             uint256 lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
+            // Swap the order with the last item in the array and remove the last item
             requesterOutbox[_user][itemIndex] = lastItem;
             requesterOutbox[_user].pop();
             outboxRequestIndexTracker[_user][_orderId] = 0;
             outboxNextIndexTracker[_user]--;
         } else {
+            // Locate order index
             require(inboxRequestIndexTracker[_user][_orderId] != 0, "Item not in inbox");
             uint256 itemIndex = --inboxRequestIndexTracker[_user][_orderId];
             uint256 lastItem = fufillerInbox[_user][fufillerInbox[_user].length - 1];
+            // Swap the order with the last item in the array and remove the last item
             fufillerInbox[_user][itemIndex] = lastItem;
             fufillerInbox[_user].pop();
             inboxRequestIndexTracker[_user][_orderId] = 0;
@@ -482,6 +490,9 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
         approvedAddresses[msg.sender][_user] = false;
     }
 
+    /**
+     * @dev Get the order details.
+     */
     function getOrder(uint256 _orderId) public view returns (Request memory) {
         return _requestPool[msg.sender][_orderId];
     }
@@ -500,5 +511,28 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
 
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
+    }
+
+    /**
+     * @dev Pause the contract in case of emergency
+     */
+    function pauseTrading() external onlyAdmin {
+        _pause();
+    }
+
+    /**
+     * @dev Resume trading after a pause
+     */
+
+    function resumeTrading() external onlyAdmin {
+        _resumeTrading();
+    }
+
+    function _pause() internal {
+        pause = 1;
+    }
+
+    function _resumeTrading() internal{
+        pause = 0;
     }
 }
