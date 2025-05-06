@@ -3,9 +3,9 @@ pragma solidity ^0.8.15;
 
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
-import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {ISwapperErrors} from "./ISwapperErrors.sol";
-
+import {Initializable} from "@openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 /**
  * @title NFT SWAP
  * @author 0xstacker "github.com/0xStacker
@@ -17,14 +17,15 @@ import {ISwapperErrors} from "./ISwapperErrors.sol";
  * If party B rejects, party A's nft is returned to their wallet.
  * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
  */
-contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
+contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, ISwapperErrors {
     // Universal inbox limit.
     uint8 internal constant FUFILLER_INBOX_LIMIT = 10;
 
-    uint8 internal pause;
-
     // Maximum number of nfts that can be included in a single transaction.
     uint8 internal constant MAX_TRADEABLE_NFT = 15;
+
+    // Fees for creating an order involving multiple nfts. 1 to 1 orders are free.
+    uint256 internal constant FEE_PER_NFT = 0.0005 ether;
 
     // Admin address.
     address public admin;
@@ -33,7 +34,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
     uint256 internal _nextOrderId = 1;
 
     // General request pool
-    mapping(address _fufiller => mapping(uint256 _orderId => Request)) public _requestPool;
+    mapping(address _fufiller => mapping(uint256 _orderId => Request)) public _orderPool;
 
     // Keep track of order index inside user inbox for easier removal after completion.
     mapping(address => mapping(uint256 => uint256 inboxRequestIndex)) public inboxRequestIndexTracker;
@@ -66,10 +67,17 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
 
     mapping(address _fufiller => mapping(address _requester => bool)) public approvedAddresses;
 
+    enum OrderStatus {
+        pending,
+        completed
+    }
 
+    enum Location {
+        outbox,
+        inbox
+    }
 
-    // Events
-
+    
     struct Nft {
         address contractAddress;
         uint256 tokenId;
@@ -91,6 +99,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
         address[] requestedNfts;
         uint256[] ownedNftIds;
         uint256[] requestedNftIds;
+        OrderStatus status;
     }
 
     // Modifiers
@@ -109,8 +118,13 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
         _;
     }
 
-    constructor() ReentrancyGuard() {
-        admin = msg.sender;
+    constructor(){
+        _disableInitializers();
+    }
+
+    function initialize(address _admin) external initializer{
+        __ReentrancyGuard_init();
+        admin = _admin;
     }
 
     receive() external payable {}
@@ -129,9 +143,10 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
      * @param _order holds the request data. see Request struct.
      */
     function createSwapOrderMulti(Request memory _order) internal nonReentrant {
+        
         if (
             _order.ownedNfts.length != _order.ownedNftIds.length
-                && _order.requestedNfts.length != _order.requestedNftIds.length
+                || _order.requestedNfts.length != _order.requestedNftIds.length
         ) {
             revert Swapper__BadOrder();
         }
@@ -171,7 +186,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
         }
 
         // Store the request in the request pool
-        _requestPool[_order.fufiller][_order.orderId] = _order;
+        _orderPool[_order.fufiller][_order.orderId] = _order;
         inboxRequestIndexTracker[_order.fufiller][_order.orderId] = ++inboxNextIndexTracker[_order.fufiller];
         outboxRequestIndexTracker[_order.requester][_order.orderId] = ++outboxNextIndexTracker[_order.requester];
         fufillerInbox[_order.fufiller].push(_order.orderId);
@@ -191,7 +206,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
         uint256 totalRequestedNfts = _order.requestedNfts.length;
         uint256 totalOwnedNfts = _order.ownedNfts.length;
 
-        delete _requestPool[_order.fufiller][_order.orderId]; //__ Add an accepted and rejected flag to request struct__//
+        _orderPool[_order.fufiller][_order.orderId].status = OrderStatus.completed;
 
         // remove request from inbox and add it to their accepted list
         removeOrder(Location.inbox, _order.fufiller, _order.orderId);
@@ -203,7 +218,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
         // Fufil swap order
         for (uint256 i; i < totalRequestedNfts; i++) {
             Nft memory requestedNft =
-                Nft({contractAddress: _order.requestedNfts[0], tokenId: _order.requestedNftIds[0]});
+                Nft({contractAddress: _order.requestedNfts[i], tokenId: _order.requestedNftIds[i]});
             IERC721 _orderedNft = IERC721(requestedNft.contractAddress);
 
             // Ensure that the order fufiller still has the nft involved.
@@ -226,7 +241,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
 
     /**
      * @dev Initiate a swap request to a user.
-     * @param _inRequest @dev holds the request data. see RequestIn struct.
+     * @param _inRequest holds the request data. see RequestIn struct.
      * @notice Requester must own the nfts they are requesting to swap.
      * @notice Requester can cancel their request at any time before it is accepted or rejected.
      * contract takes requester's nft into custody, gives the request an id and sends it to fufiller's inbox.
@@ -240,19 +255,25 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
             ownedNfts: _inRequest.ownedNfts,
             requestedNfts: _inRequest.requestedNfts,
             ownedNftIds: _inRequest.ownedNftIds,
-            requestedNftIds: _inRequest.requestedNftIds
+            requestedNftIds: _inRequest.requestedNftIds,
+            status: OrderStatus.pending
         });
 
         // Ensure order data is valid.
         if (
             _order.ownedNfts.length != _order.ownedNftIds.length
-                && _order.requestedNfts.length != _order.requestedNftIds.length
+                ||  _order.requestedNfts.length != _order.requestedNftIds.length
         ) {
             revert Swapper__BadOrder();
         }
 
         // Handle orders involving miultiple nfts.
         if (_order.ownedNfts.length > 1 || _order.requestedNfts.length > 1) {
+            // Charge fee per nfts involved in the order.
+            uint8 totalNftsInvolved = uint8(_order.ownedNfts.length + _order.requestedNfts.length);
+            if (msg.value < FEE_PER_NFT * totalNftsInvolved) {
+                revert Swapper__InsufficientOrderFee(msg.value);
+            }
             createSwapOrderMulti(_order);
         } else {
             // Avoid looping unless its necessary
@@ -290,7 +311,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
             // Create and store swap order
             outboxNextIndexTracker[_order.requester]++;
             inboxNextIndexTracker[_order.fufiller]++;
-            _requestPool[_order.fufiller][_order.orderId] = _order;
+            _orderPool[_order.fufiller][_order.orderId] = _order;
             inboxRequestIndexTracker[_order.fufiller][_order.orderId] = inboxNextIndexTracker[_order.fufiller];
             outboxRequestIndexTracker[_order.requester][_order.orderId] =
                 outboxNextIndexTracker[_order.requester];
@@ -308,8 +329,8 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
      * @notice Automatically rejects if the fufiller no longer hold the required nft.
      */
     function fufilSwapOrder(uint256 _orderId) external onlyFufiller(getOrder(_orderId)) {
-        Request memory _order = _requestPool[msg.sender][_orderId];
-        if (_isEmpty(_order)) {
+        Request memory _order = _orderPool[msg.sender][_orderId];
+        if (_order.status == OrderStatus.completed) {
             revert Swapper__BadOrder();
         }
 
@@ -334,7 +355,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
                 userCanceledRequests[_requester].push(_order.orderId);
                 userCanceledRequests[_fufiller].push(_order.orderId);
             } else {
-                delete _requestPool[_fufiller][_orderId]; // FIX: Add an accepted and rejected flag to request struct
+                _orderPool[_fufiller][_orderId].status = OrderStatus.completed; // FIX: Add an accepted and rejected flag to request struct
 
                 // Remove order from fufiller inbox and add it to accepted list
                 removeOrder(Location.inbox, _fufiller, _orderId);
@@ -358,14 +379,14 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
      * @param _orderId is the identifier for the request.
      */
     function rejectOrder(uint256 _orderId) public {
-        Request memory _order = _requestPool[msg.sender][_orderId];
-        if (_isEmpty(_order)) {
+        Request memory _order = _orderPool[msg.sender][_orderId];
+        if (_order.status == OrderStatus.completed) {
             revert Swapper__BadOrder();
         }
 
         address _requester = _order.requester;
         address _fufiller = _order.fufiller;
-        delete _requestPool[_order.fufiller][_orderId];
+        _orderPool[_order.fufiller][_orderId].status = OrderStatus.completed;
         // remove order from fufiller's inbox and add it to their rejected list
         removeOrder(Location.inbox, _fufiller, _orderId);
         // remove order from requester's outbox and add it to their rejected list
@@ -380,11 +401,6 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
             _requesterNft.safeTransferFrom(address(this), _order.requester, ownedNft.tokenId);
         }
         emit RejectSwapOrder(_orderId);
-    }
-
-    enum Location {
-        outbox,
-        inbox
     }
 
     /**
@@ -423,13 +439,13 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
      * @notice A requester can only cancel their request if the fufiller has not accepted or rejected the request at their end.
      */
     function cancelOrder(address _to, uint256 _orderId) external {
-        Request memory _order = _requestPool[_to][_orderId];
-        if (_isEmpty(_order)) {
+        Request memory _order = _orderPool[_to][_orderId];
+        if (_order.status == OrderStatus.completed) {
             revert Swapper__BadOrder();
         }
         address _requester = _order.requester;
         address _fufiller = _order.fufiller;
-        delete _requestPool[_fufiller][_orderId];
+        _orderPool[_fufiller][_orderId].status = OrderStatus.completed;
         removeOrder(Location.outbox, _requester, _orderId);
         removeOrder(Location.inbox, _fufiller, _orderId);
         userCanceledRequests[_requester].push(_order.orderId);
@@ -443,6 +459,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
         emit CancelSwapOrder(_orderId);
     }
 
+    // Admin fee withdrawal
     function withdrawFees(address payable _fundsReceipieint, uint256 _amount) external onlyAdmin {
         require(_amount <= address(this).balance, "Insufficient balance");
         (bool success,) = _fundsReceipieint.call{value: _amount}("");
@@ -494,7 +511,7 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
      * @dev Get the order details.
      */
     function getOrder(uint256 _orderId) public view returns (Request memory) {
-        return _requestPool[msg.sender][_orderId];
+        return _orderPool[msg.sender][_orderId];
     }
 
     /**
@@ -513,26 +530,5 @@ contract Swapper is ReentrancyGuard, IERC721Receiver, ISwapperErrors {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    /**
-     * @dev Pause the contract in case of emergency
-     */
-    function pauseTrading() external onlyAdmin {
-        _pause();
-    }
 
-    /**
-     * @dev Resume trading after a pause
-     */
-
-    function resumeTrading() external onlyAdmin {
-        _resumeTrading();
-    }
-
-    function _pause() internal {
-        pause = 1;
-    }
-
-    function _resumeTrading() internal{
-        pause = 0;
-    }
 }
