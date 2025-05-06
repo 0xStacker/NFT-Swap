@@ -11,6 +11,7 @@ interface ISwapperErrors {
     error Swapper__InvalidFufiller(address impersonator);
     error Swapper__FufillerInboxFull(uint8 size);
     error Swapper__NotAdmin(address _user);
+    error Swapper__InsufficientOrderFee(uint256 _fee);
 
     event CreateSwapOrder(address indexed _from, address _to, uint256 _requestId);
     event CreateSwapOrderMulti(address indexed _from, address _to, uint256 _requestId);
