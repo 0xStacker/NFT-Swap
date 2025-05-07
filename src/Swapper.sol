@@ -279,7 +279,6 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             }
             createSwapOrderMulti(_order);
         } else {
-
             // Avoid looping unless its necessary
             Nft memory requestedNft =
                 Nft({contractAddress: _order.requestedNfts[0], tokenId: _order.requestedNftIds[0]});
@@ -322,7 +321,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             requesterOutbox[msg.sender].push(_order.orderId);
             _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
             // refund sent fee
-            if(msg.value > 0){
+            if (msg.value > 0) {
                 payable(msg.sender).transfer(msg.value);
             }
             emit CreateSwapOrder(_order.requester, _order.fufiller, _order.orderId);

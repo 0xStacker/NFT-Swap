@@ -32,9 +32,7 @@ contract SwapTest is Test {
         nft2 = new Nft();
         swapper = new SworpV1();
         proxy = new TransparentUpgradeableProxy(
-            address(swapper),
-            address(this),
-            abi.encodeWithSignature("initialize(address)", address(this))
+            address(swapper), address(this), abi.encodeWithSignature("initialize(address)", address(this))
         );
         swapper = SworpV1(payable(address(proxy)));
     }
