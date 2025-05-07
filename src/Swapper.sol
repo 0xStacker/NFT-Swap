@@ -17,7 +17,8 @@ import {Initializable} from "@openzeppelin-upgradeable/proxy/utils/Initializable
  * If party B rejects, party A's nft is returned to their wallet.
  * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
  */
-contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, ISwapperErrors {
+
+contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, ISwapperErrors {
     // Universal inbox limit.
     uint8 internal constant FUFILLER_INBOX_LIMIT = 10;
 
@@ -67,22 +68,24 @@ contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
 
     mapping(address _fufiller => mapping(address _requester => bool)) public approvedAddresses;
 
+    // NOTICE: completed order status mean the order has been accepted or rejected.
     enum OrderStatus {
         pending,
         completed
     }
 
+    // Location enum allows us to keep track of where to remove a given order from.
     enum Location {
         outbox,
         inbox
     }
 
-    
     struct Nft {
         address contractAddress;
         uint256 tokenId;
     }
 
+    // Struct to hold the request data.
     struct RequestIn {
         address fufiller;
         address[] ownedNfts;
@@ -91,6 +94,7 @@ contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         uint256[] requestedNftIds;
     }
 
+    // Finalized order data after order has been given an id.
     struct Request {
         address requester;
         address fufiller;
@@ -118,18 +122,18 @@ contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         _;
     }
 
-    constructor(){
+    constructor() {
         _disableInitializers();
     }
 
-    function initialize(address _admin) external initializer{
+    function initialize(address _admin) external initializer {
         __ReentrancyGuard_init();
         admin = _admin;
     }
 
     receive() external payable {}
 
-    /// @dev Check if the contract supports the ERC721 interface
+    /// @dev Checks if a given contract address supports the standard ERC721 interface
     function checkERC721InterfaceSupport(address _nft) internal view returns (bool) {
         try IERC721(_nft).supportsInterface(type(IERC721).interfaceId) returns (bool result) {
             return result;
@@ -143,7 +147,6 @@ contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
      * @param _order holds the request data. see Request struct.
      */
     function createSwapOrderMulti(Request memory _order) internal nonReentrant {
-        
         if (
             _order.ownedNfts.length != _order.ownedNftIds.length
                 || _order.requestedNfts.length != _order.requestedNftIds.length
@@ -262,7 +265,7 @@ contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         // Ensure order data is valid.
         if (
             _order.ownedNfts.length != _order.ownedNftIds.length
-                ||  _order.requestedNfts.length != _order.requestedNftIds.length
+                || _order.requestedNfts.length != _order.requestedNftIds.length
         ) {
             revert Swapper__BadOrder();
         }
@@ -276,6 +279,7 @@ contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             }
             createSwapOrderMulti(_order);
         } else {
+
             // Avoid looping unless its necessary
             Nft memory requestedNft =
                 Nft({contractAddress: _order.requestedNfts[0], tokenId: _order.requestedNftIds[0]});
@@ -313,11 +317,14 @@ contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             inboxNextIndexTracker[_order.fufiller]++;
             _orderPool[_order.fufiller][_order.orderId] = _order;
             inboxRequestIndexTracker[_order.fufiller][_order.orderId] = inboxNextIndexTracker[_order.fufiller];
-            outboxRequestIndexTracker[_order.requester][_order.orderId] =
-                outboxNextIndexTracker[_order.requester];
+            outboxRequestIndexTracker[_order.requester][_order.orderId] = outboxNextIndexTracker[_order.requester];
             fufillerInbox[_order.fufiller].push(_order.orderId);
             requesterOutbox[msg.sender].push(_order.orderId);
             _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
+            // refund sent fee
+            if(msg.value > 0){
+                payable(msg.sender).transfer(msg.value);
+            }
             emit CreateSwapOrder(_order.requester, _order.fufiller, _order.orderId);
         }
     }
@@ -529,6 +536,4 @@ contract Swapper is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
-
-
 }
