@@ -1,66 +1,45 @@
-## Foundry
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+# SWORP
+A trustless, peer to peer NFT swapping tool built for secure exchanges between two parties. This project enhances exchange of NFTs between users without intermediaries.
+## 🔍Overview
+Sworp allows users to:
 
-Foundry consists of:
+- Create swap Order: Propose an exchange to another user by specifying the NFTs you wish to offer and the NFTs you desire in return.
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- Accept Orders: Agree to swap proposals sent to you, facilitating a direct exchange.
 
-## Documentation
+- Reject Orders: Reject a swap proposal if you're not happy with the deal.
 
-https://book.getfoundry.sh/
+- Cancel pending Orders: Withdraw your swap Order before they're accepted. 
 
-## Usage
 
-### Build
+## 🛠How It Works
 
-```shell
-$ forge build
-```
+ * Party A (requester) creates a swap order and sends to party B (fufiller) indicating they would like to swap their Nft(s) for an Nft(s) owned by party B.
+ * Contract takes custody of party A's Nft(s) and sends the request to party B's inbox
+ * party B can accept or reject the request. If party B accepts, the swap transaction is executed
+ * If party B rejects, party A's nft is returned to their wallet.
+ * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
+ * The contract allows for multiple nfts to be involved in a single transaction.
+## 👀Features
+- Trustless Peer to Peer NFT swaps with no central authority
+- Swaps involving 1 to 1 NFTs, 1 to many NFTs, many to 1 NFT and many to many NFTs. Maximum NFTs that can be included in a transaction is capped at 15.
 
-### Test
 
-```shell
-$ forge test
-```
+## 🗺Roadmap
 
-### Format
+- #### Ability to include tokens within swap order to sweeten deal.
 
-```shell
-$ forge fmt
-```
+- #### Front End deployment
 
-### Gas Snapshots
+- #### ERC-1155 Support:    
+    Extend functionalities to support multi token standards.
 
-```shell
-$ forge snapshot
-```
+- #### Multi Chain Deployment.
 
-### Anvil
+- #### Multi Chain Swapping: 
+    Allow users on one chain to exchange their nfts with users on another chain. assets would retain their native chain.
 
-```shell
-$ anvil
-```
+- #### Mainnet Deployment
 
-### Deploy
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
