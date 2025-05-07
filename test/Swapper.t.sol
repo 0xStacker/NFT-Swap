@@ -44,7 +44,7 @@ contract SwapTest is Test {
         uint256[] memory _ownedTokenId,
         uint256[] memory _requestedTokenId
     ) internal {
-        swapRequest1.fufiller = _requestee;
+        swapRequest1.fulfiller = _requestee;
         swapRequest1.ownedNfts = _ownedNft;
         swapRequest1.requestedNfts = _requestedNft;
         swapRequest1.ownedNftIds = _ownedTokenId;

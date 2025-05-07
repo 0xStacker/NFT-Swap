@@ -8,8 +8,8 @@ interface ISwapperErrors {
     error Swapper__InvalidAddress();
     error Swapper__NotApproved(address requester);
     error Swapper__BadOrder();
-    error Swapper__InvalidFufiller(address impersonator);
-    error Swapper__FufillerInboxFull(uint8 size);
+    error Swapper__InvalidFulfiller(address impersonator);
+    error Swapper__FulfillerInboxFull(uint8 size);
     error Swapper__NotAdmin(address _user);
     error Swapper__InsufficientOrderFee(uint256 _fee);
 

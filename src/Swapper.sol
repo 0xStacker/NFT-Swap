@@ -10,17 +10,19 @@ import {Initializable} from "@openzeppelin-upgradeable/proxy/utils/Initializable
  * @title NFT SWAP
  * @author 0xstacker "github.com/0xStacker
  * A Trustless tool for exchanging NFTs bewteen two parties A and B.
- * Party A sends a swap request to party B indicating they would like to swap
- * their Nft for an Nft owned by party B.
- * Contract takes custody of party A's Nft and sends the request to party B's inbox
+ * Party A (requester) creates a swap order and sends to party B (fulfiller) indicating they would like to swap
+ * their Nft(s) for an Nft(s) owned by party B.
+ * Contract takes custody of party A's Nft(s) and sends the request to party B's inbox
  * party B can accept or reject the request. If party B accepts, the swap transaction is executed
  * If party B rejects, party A's nft is returned to their wallet.
  * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
+ * The contract allows for multiple nfts to be involved in a single transaction.
+ * Transactions involving a 1 to 1 nft swap are free.
  */
 
 contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, ISwapperErrors {
     // Universal inbox limit.
-    uint8 internal constant FUFILLER_INBOX_LIMIT = 10;
+    uint8 internal constant FULFILLER_INBOX_LIMIT = 10;
 
     // Maximum number of nfts that can be included in a single transaction.
     uint8 internal constant MAX_TRADEABLE_NFT = 15;
@@ -35,7 +37,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     uint256 internal _nextOrderId = 1;
 
     // General request pool
-    mapping(address _fufiller => mapping(uint256 _orderId => Request)) public _orderPool;
+    mapping(address _fulfiller => mapping(uint256 _orderId => Request)) public _orderPool;
 
     // Keep track of order index inside user inbox for easier removal after completion.
     mapping(address => mapping(uint256 => uint256 inboxRequestIndex)) public inboxRequestIndexTracker;
@@ -49,24 +51,24 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     // Assign index to the next request in the outbox
     mapping(address => uint256) private outboxNextIndexTracker;
 
-    // fufillers' inbox
-    mapping(address _fufiller => uint256[]) public fufillerInbox;
+    // fulfillers' inbox
+    mapping(address _fulfiller => uint256[]) public fulfillerInbox;
 
     // Requesters' outbox
     mapping(address _requester => uint256[]) public requesterOutbox;
 
     // User's accepted requests
-    mapping(address _fufiller => uint256[]) public userAcceptedRequests;
+    mapping(address _fulfiller => uint256[]) public userAcceptedRequests;
 
     // User's rejected requests
-    mapping(address _fufiller => uint256[]) public userRejectedRequests;
+    mapping(address _fulfiller => uint256[]) public userRejectedRequests;
 
     // User's canceled requests
     mapping(address _user => uint256[]) public userCanceledRequests;
 
     // User's approved addresses. Only adresses aproved by user can send nft swap requests.
 
-    mapping(address _fufiller => mapping(address _requester => bool)) public approvedAddresses;
+    mapping(address _fulfiller => mapping(address _requester => bool)) public approvedAddresses;
 
     // NOTICE: completed order status mean the order has been accepted or rejected.
     enum OrderStatus {
@@ -87,7 +89,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
 
     // Struct to hold the request data.
     struct RequestIn {
-        address fufiller;
+        address fulfiller;
         address[] ownedNfts;
         address[] requestedNfts;
         uint256[] ownedNftIds;
@@ -97,7 +99,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     // Finalized order data after order has been given an id.
     struct Request {
         address requester;
-        address fufiller;
+        address fulfiller;
         uint256 orderId;
         address[] ownedNfts;
         address[] requestedNfts;
@@ -108,9 +110,9 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
 
     // Modifiers
 
-    modifier onlyFufiller(Request memory _order) {
-        if (msg.sender != _order.fufiller) {
-            revert Swapper__InvalidFufiller(msg.sender);
+    modifier onlyFulfiller(Request memory _order) {
+        if (msg.sender != _order.fulfiller) {
+            revert Swapper__InvalidFulfiller(msg.sender);
         }
         _;
     }
@@ -154,20 +156,20 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             revert Swapper__BadOrder();
         }
 
-        if (_order.requester == _order.fufiller) {
+        if (_order.requester == _order.fulfiller) {
             revert Swapper__SelfOrder();
         }
 
-        // Ensure that the fufiller has approved the requester's address.
-        if (!approvedAddresses[_order.fufiller][_order.requester]) {
+        // Ensure that the fulfiller has approved the requester's address.
+        if (!approvedAddresses[_order.fulfiller][_order.requester]) {
             revert Swapper__NotApproved(_order.requester);
         }
 
         // Ensure requester own the nfts involved.
         uint256 totalOwnedNfts = _order.ownedNfts.length;
 
-        if (fufillerInbox[_order.fufiller].length == FUFILLER_INBOX_LIMIT) {
-            revert Swapper__FufillerInboxFull(10);
+        if (fulfillerInbox[_order.fulfiller].length == FULFILLER_INBOX_LIMIT) {
+            revert Swapper__FulfillerInboxFull(10);
         }
 
         // Contract takes custody of the requester's nfts.
@@ -189,31 +191,31 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         }
 
         // Store the request in the request pool
-        _orderPool[_order.fufiller][_order.orderId] = _order;
-        inboxRequestIndexTracker[_order.fufiller][_order.orderId] = ++inboxNextIndexTracker[_order.fufiller];
+        _orderPool[_order.fulfiller][_order.orderId] = _order;
+        inboxRequestIndexTracker[_order.fulfiller][_order.orderId] = ++inboxNextIndexTracker[_order.fulfiller];
         outboxRequestIndexTracker[_order.requester][_order.orderId] = ++outboxNextIndexTracker[_order.requester];
-        fufillerInbox[_order.fufiller].push(_order.orderId);
+        fulfillerInbox[_order.fulfiller].push(_order.orderId);
         requesterOutbox[msg.sender].push(_order.orderId);
         _nextOrderId++;
 
-        emit CreateSwapOrderMulti(_order.requester, _order.fufiller, _order.orderId);
+        emit CreateSwapOrderMulti(_order.requester, _order.fulfiller, _order.orderId);
     }
 
     /**
      * @dev Accept an incoming request that involves multiple nfts.
      * @param _order holds the request data. see Request struct.
-     * @notice Only the fufiller provided in the request data can accept the request
-     * @notice Automatically rejects if the fufiller no longer hold the required nft.
+     * @notice Only the fulfiller provided in the request data can accept the request
+     * @notice Automatically rejects if the fulfiller no longer hold the required nft.
      */
-    function fufilSwapOrderMulti(Request memory _order) internal onlyFufiller(_order) {
+    function fufilSwapOrderMulti(Request memory _order) internal onlyFulfiller(_order) {
         uint256 totalRequestedNfts = _order.requestedNfts.length;
         uint256 totalOwnedNfts = _order.ownedNfts.length;
 
-        _orderPool[_order.fufiller][_order.orderId].status = OrderStatus.completed;
+        _orderPool[_order.fulfiller][_order.orderId].status = OrderStatus.completed;
 
         // remove request from inbox and add it to their accepted list
-        removeOrder(Location.inbox, _order.fufiller, _order.orderId);
-        userAcceptedRequests[_order.fufiller].push(_order.orderId);
+        removeOrder(Location.inbox, _order.fulfiller, _order.orderId);
+        userAcceptedRequests[_order.fulfiller].push(_order.orderId);
         // remove request from requester outbox and add it to their accepted list
         removeOrder(Location.outbox, _order.requester, _order.orderId);
         userAcceptedRequests[_order.requester].push(_order.orderId);
@@ -224,11 +226,11 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
                 Nft({contractAddress: _order.requestedNfts[i], tokenId: _order.requestedNftIds[i]});
             IERC721 _orderedNft = IERC721(requestedNft.contractAddress);
 
-            // Ensure that the order fufiller still has the nft involved.
+            // Ensure that the order fulfiller still has the nft involved.
             if (_orderedNft.ownerOf(requestedNft.tokenId) != msg.sender) {
                 rejectOrder(_order.orderId);
                 userCanceledRequests[_order.requester].push(_order.orderId);
-                userCanceledRequests[_order.fufiller].push(_order.orderId);
+                userCanceledRequests[_order.fulfiller].push(_order.orderId);
             } else {
                 _orderedNft.safeTransferFrom(msg.sender, _order.requester, requestedNft.tokenId);
             }
@@ -237,7 +239,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         for (uint256 i; i < totalOwnedNfts; i++) {
             Nft memory ownedNft = Nft({contractAddress: _order.ownedNfts[i], tokenId: _order.ownedNftIds[i]});
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
-            _ownedNft.safeTransferFrom(address(this), _order.fufiller, ownedNft.tokenId);
+            _ownedNft.safeTransferFrom(address(this), _order.fulfiller, ownedNft.tokenId);
         }
         emit FufillSwapOrder(_order.orderId);
     }
@@ -247,14 +249,14 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
      * @param _inRequest holds the request data. see RequestIn struct.
      * @notice Requester must own the nfts they are requesting to swap.
      * @notice Requester can cancel their request at any time before it is accepted or rejected.
-     * contract takes requester's nft into custody, gives the request an id and sends it to fufiller's inbox.
+     * contract takes requester's nft into custody, gives the request an id and sends it to fulfiller's inbox.
      */
     function createSwapOrder(RequestIn calldata _inRequest) external payable {
         // Configure order data (Assign requestId).
         Request memory _order = Request({
             orderId: _nextOrderId++,
             requester: msg.sender,
-            fufiller: _inRequest.fufiller,
+            fulfiller: _inRequest.fulfiller,
             ownedNfts: _inRequest.ownedNfts,
             requestedNfts: _inRequest.requestedNfts,
             ownedNftIds: _inRequest.ownedNftIds,
@@ -287,12 +289,12 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
                 revert Swapper__InvalidAddress();
             }
 
-            if (_order.requester == _order.fufiller) {
+            if (_order.requester == _order.fulfiller) {
                 revert Swapper__SelfOrder();
             }
 
-            // Ensure that the fufiller has approved the requester's address.
-            if (!approvedAddresses[_order.fufiller][_order.requester]) {
+            // Ensure that the fulfiller has approved the requester's address.
+            if (!approvedAddresses[_order.fulfiller][_order.requester]) {
                 revert Swapper__NotApproved(_order.requester);
             }
 
@@ -307,41 +309,41 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             }
 
             // Prevent spams.
-            if (fufillerInbox[_order.fufiller].length == FUFILLER_INBOX_LIMIT) {
-                revert Swapper__FufillerInboxFull(10);
+            if (fulfillerInbox[_order.fulfiller].length == FULFILLER_INBOX_LIMIT) {
+                revert Swapper__FulfillerInboxFull(10);
             }
 
             // Create and store swap order
             outboxNextIndexTracker[_order.requester]++;
-            inboxNextIndexTracker[_order.fufiller]++;
-            _orderPool[_order.fufiller][_order.orderId] = _order;
-            inboxRequestIndexTracker[_order.fufiller][_order.orderId] = inboxNextIndexTracker[_order.fufiller];
+            inboxNextIndexTracker[_order.fulfiller]++;
+            _orderPool[_order.fulfiller][_order.orderId] = _order;
+            inboxRequestIndexTracker[_order.fulfiller][_order.orderId] = inboxNextIndexTracker[_order.fulfiller];
             outboxRequestIndexTracker[_order.requester][_order.orderId] = outboxNextIndexTracker[_order.requester];
-            fufillerInbox[_order.fufiller].push(_order.orderId);
+            fulfillerInbox[_order.fulfiller].push(_order.orderId);
             requesterOutbox[msg.sender].push(_order.orderId);
             _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
             // refund sent fee
             if (msg.value > 0) {
                 payable(msg.sender).transfer(msg.value);
             }
-            emit CreateSwapOrder(_order.requester, _order.fufiller, _order.orderId);
+            emit CreateSwapOrder(_order.requester, _order.fulfiller, _order.orderId);
         }
     }
 
     /**
      * @dev Accept an incoming request
      * @param _orderId is the identifier for the request to be accepted.
-     * @notice Only the fufiller provided in the request data can accept the request
-     * @notice Automatically rejects if the fufiller no longer hold the required nft.
+     * @notice Only the fulfiller provided in the request data can accept the request
+     * @notice Automatically rejects if the fulfiller no longer hold the required nft.
      */
-    function fufilSwapOrder(uint256 _orderId) external onlyFufiller(getOrder(_orderId)) {
+    function fufilSwapOrder(uint256 _orderId) external onlyFulfiller(getOrder(_orderId)) {
         Request memory _order = _orderPool[msg.sender][_orderId];
         if (_order.status == OrderStatus.completed) {
             revert Swapper__BadOrder();
         }
 
         address _requester = _order.requester;
-        address _fufiller = _order.fufiller;
+        address _fulfiller = _order.fulfiller;
 
         // Handle orders involving multiple nfts.
         if (_order.ownedNfts.length > 1 || _order.requestedNfts.length > 1) {
@@ -359,13 +361,13 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             if (_requestedNft.ownerOf(_requestedNftId) != msg.sender) {
                 rejectOrder(_orderId);
                 userCanceledRequests[_requester].push(_order.orderId);
-                userCanceledRequests[_fufiller].push(_order.orderId);
+                userCanceledRequests[_fulfiller].push(_order.orderId);
             } else {
-                _orderPool[_fufiller][_orderId].status = OrderStatus.completed; // FIX: Add an accepted and rejected flag to request struct
+                _orderPool[_fulfiller][_orderId].status = OrderStatus.completed; // FIX: Add an accepted and rejected flag to request struct
 
-                // Remove order from fufiller inbox and add it to accepted list
-                removeOrder(Location.inbox, _fufiller, _orderId);
-                userAcceptedRequests[_fufiller].push(_order.orderId);
+                // Remove order from fulfiller inbox and add it to accepted list
+                removeOrder(Location.inbox, _fulfiller, _orderId);
+                userAcceptedRequests[_fulfiller].push(_order.orderId);
 
                 // remove order from requester outbox and add it to accepted list
                 removeOrder(Location.outbox, _requester, _orderId);
@@ -374,7 +376,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
 
                 // Fufil swap order
                 _requestedNft.safeTransferFrom(msg.sender, _requester, _requestedNftId);
-                _requesterNft.safeTransferFrom(address(this), _fufiller, _requesterNftId);
+                _requesterNft.safeTransferFrom(address(this), _fulfiller, _requesterNftId);
                 emit FufillSwapOrder(_orderId);
             }
         }
@@ -391,14 +393,14 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         }
 
         address _requester = _order.requester;
-        address _fufiller = _order.fufiller;
-        _orderPool[_order.fufiller][_orderId].status = OrderStatus.completed;
-        // remove order from fufiller's inbox and add it to their rejected list
-        removeOrder(Location.inbox, _fufiller, _orderId);
+        address _fulfiller = _order.fulfiller;
+        _orderPool[_order.fulfiller][_orderId].status = OrderStatus.completed;
+        // remove order from fulfiller's inbox and add it to their rejected list
+        removeOrder(Location.inbox, _fulfiller, _orderId);
         // remove order from requester's outbox and add it to their rejected list
         removeOrder(Location.outbox, _requester, _orderId);
 
-        userRejectedRequests[_fufiller].push(_order.orderId);
+        userRejectedRequests[_fulfiller].push(_order.orderId);
         userRejectedRequests[_requester].push(_order.orderId);
         // Return requester's NFT
         for (uint256 i; i < _order.ownedNfts.length; i++) {
@@ -430,10 +432,10 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             // Locate order index
             require(inboxRequestIndexTracker[_user][_orderId] != 0, "Item not in inbox");
             uint256 itemIndex = --inboxRequestIndexTracker[_user][_orderId];
-            uint256 lastItem = fufillerInbox[_user][fufillerInbox[_user].length - 1];
+            uint256 lastItem = fulfillerInbox[_user][fulfillerInbox[_user].length - 1];
             // Swap the order with the last item in the array and remove the last item
-            fufillerInbox[_user][itemIndex] = lastItem;
-            fufillerInbox[_user].pop();
+            fulfillerInbox[_user][itemIndex] = lastItem;
+            fulfillerInbox[_user].pop();
             inboxRequestIndexTracker[_user][_orderId] = 0;
             inboxNextIndexTracker[_user]--;
         }
@@ -442,7 +444,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     /**
      * @dev Allows a requester to cancel their request.
      * @param _orderId is the identifier of the request.
-     * @notice A requester can only cancel their request if the fufiller has not accepted or rejected the request at their end.
+     * @notice A requester can only cancel their request if the fulfiller has not accepted or rejected the request at their end.
      */
     function cancelOrder(address _to, uint256 _orderId) external {
         Request memory _order = _orderPool[_to][_orderId];
@@ -450,12 +452,12 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             revert Swapper__BadOrder();
         }
         address _requester = _order.requester;
-        address _fufiller = _order.fufiller;
-        _orderPool[_fufiller][_orderId].status = OrderStatus.completed;
+        address _fulfiller = _order.fulfiller;
+        _orderPool[_fulfiller][_orderId].status = OrderStatus.completed;
         removeOrder(Location.outbox, _requester, _orderId);
-        removeOrder(Location.inbox, _fufiller, _orderId);
+        removeOrder(Location.inbox, _fulfiller, _orderId);
         userCanceledRequests[_requester].push(_order.orderId);
-        userCanceledRequests[_fufiller].push(_order.orderId);
+        userCanceledRequests[_fulfiller].push(_order.orderId);
         // Return requester's NFT(s)
         for (uint256 i; i < _order.ownedNfts.length; i++) {
             Nft memory ownedNft = Nft({contractAddress: _order.ownedNfts[i], tokenId: _order.ownedNftIds[i]});
@@ -474,7 +476,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
 
     // Getter for user inbox.
     function fetchOrderInbox(address _user) external view returns (uint256[] memory) {
-        return fufillerInbox[_user];
+        return fulfillerInbox[_user];
     }
 
     // Getter for user outbox.
