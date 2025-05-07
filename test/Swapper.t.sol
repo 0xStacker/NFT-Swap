@@ -2,13 +2,15 @@
 pragma solidity ^0.8.6;
 
 import {Test, console} from "forge-std/Test.sol";
-import {Swapper} from "../src/Swapper.sol";
-import {Nft} from "../src/NFT-Swap.sol";
+import {SworpV1} from "../src/Swapper.sol";
+import {Nft} from "./NFT-Swap.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract SwapTest is Test {
     Nft nft;
     Nft nft2;
-    Swapper swapper;
+    SworpV1 swapper;
+    TransparentUpgradeableProxy proxy;
     address user1 = address(123);
     address user2 = address(234);
     address user3 = address(456);
@@ -18,7 +20,7 @@ contract SwapTest is Test {
     address[] _requestedNfts;
     uint256[] _ownedNftIds;
     uint256[] _requestedNftIds;
-    Swapper.RequestIn swapRequest1;
+    SworpV1.RequestIn swapRequest1;
 
     enum actor {
         REQUESTER,
@@ -28,7 +30,13 @@ contract SwapTest is Test {
     function setUp() public {
         nft = new Nft();
         nft2 = new Nft();
-        swapper = new Swapper();
+        swapper = new SworpV1();
+        proxy = new TransparentUpgradeableProxy(
+            address(swapper),
+            address(this),
+            abi.encodeWithSignature("initialize(address)", address(this))
+        );
+        swapper = SworpV1(payable(address(proxy)));
     }
 
     function _requestSwap(
@@ -43,7 +51,7 @@ contract SwapTest is Test {
         swapRequest1.requestedNfts = _requestedNft;
         swapRequest1.ownedNftIds = _ownedTokenId;
         swapRequest1.requestedNftIds = _requestedTokenId;
-        swapper.createSwapOrder(swapRequest1);
+        swapper.createSwapOrder{value: 0.1 ether}(swapRequest1);
     }
 
     function _mintFromCollection1() internal {
@@ -89,7 +97,7 @@ contract SwapTest is Test {
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
-        vm.prank(user1);
+        hoax(user1, 1 ether);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
 
         // Verify swap order
@@ -120,7 +128,7 @@ contract SwapTest is Test {
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
-        vm.prank(user1);
+        hoax(user1, 1 ether);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
         assertEq(nft.ownerOf(1), address(swapper));
 
@@ -161,7 +169,7 @@ contract SwapTest is Test {
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
-        vm.prank(user1);
+        hoax(user1, 1 ether);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
         assertEq(nft.ownerOf(1), address(swapper));
 
@@ -197,7 +205,7 @@ contract SwapTest is Test {
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
 
-        vm.prank(user1);
+        hoax(user1, 1 ether);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
         assertEq(nft.ownerOf(1), address(swapper));
         assertEq(swapper.fetchOrderInbox(user2).length, 1);
@@ -240,7 +248,7 @@ contract SwapTest is Test {
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
-        vm.prank(user1);
+        hoax(user1, 1 ether);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
         assertEq(swapper.fetchOrderInbox(user2).length, 1);
         assertEq(swapper.fetchOrderOutbox(user1).length, 1);
@@ -292,16 +300,17 @@ contract SwapTest is Test {
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
-        vm.prank(user1);
+        hoax(user1, 1 ether);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
 
         vm.prank(user2);
         swapper.revokeApproval(user1);
         _ownedNfts.pop();
+        _ownedNftIds.pop();
         _ownedNfts.push(address(nft));
         _ownedNftIds.push(++minted);
         vm.expectRevert();
-        vm.prank(user1);
+        hoax(user1, 1 ether);
         _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
     }
 
