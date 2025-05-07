@@ -4,13 +4,16 @@ A trustless, peer to peer NFT swapping tool built for secure exchanges between t
 ## 🔍Overview
 Sworp allows users to:
 
-- Create swap Order: Propose an exchange to another user by specifying the NFTs you wish to offer and the NFTs you desire in return.
+- ### Create swap Order: 
+Propose an exchange to another user by specifying the NFTs you wish to offer and the NFTs you desire in return.
 
-- Accept Orders: Agree to swap proposals sent to you, facilitating a direct exchange.
+- ### Accept Orders: 
+Agree to swap proposals sent to you, facilitating a direct exchange.
 
-- Reject Orders: Reject a swap proposal if you're not happy with the deal.
+- ### Reject Orders: 
+Reject a swap proposal if you're not happy with the deal.
 
-- Cancel pending Orders: Withdraw your swap Order before they're accepted. 
+- ### Cancel pending Orders: Withdraw your swap Order before they're accepted. 
 
 
 ## 🛠How It Works
