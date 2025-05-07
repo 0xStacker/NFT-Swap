@@ -5,13 +5,13 @@ A trustless, peer to peer NFT swapping tool built for secure exchanges between t
 Sworp allows users to:
 
 - ### Create swap Order: 
-Propose an exchange to another user by specifying the NFTs you wish to offer and the NFTs you desire in return.
+    Propose an exchange to another user by specifying the NFTs you wish to offer and the NFTs you desire in return.
 
 - ### Accept Orders: 
-Agree to swap proposals sent to you, facilitating a direct exchange.
+    Agree to swap proposals sent to you, facilitating a direct exchange.
 
 - ### Reject Orders: 
-Reject a swap proposal if you're not happy with the deal.
+    Reject a swap proposal if you're not happy with the deal.
 
 - ### Cancel pending Orders: Withdraw your swap Order before they're accepted. 
 
@@ -31,18 +31,18 @@ Reject a swap proposal if you're not happy with the deal.
 
 ## 🗺Roadmap
 
-- #### Ability to include tokens within swap order to sweeten deal.
+- ### Ability to include tokens within swap order to sweeten deal.
 
-- #### Front End deployment
+- ### Front End deployment
 
-- #### ERC-1155 Support:    
+- ### ERC-1155 Support:    
     Extend functionalities to support multi token standards.
 
-- #### Multi Chain Deployment.
+- ### Multi Chain Deployment.
 
-- #### Multi Chain Swapping: 
+- ### Multi Chain Swapping: 
     Allow users on one chain to exchange their nfts with users on another chain. assets would retain their native chain.
 
-- #### Mainnet Deployment
+- ### Mainnet Deployment
 
 
