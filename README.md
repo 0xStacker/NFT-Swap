@@ -35,10 +35,10 @@ Sworp allows users to:
 
 - **🛠 Testnet Deployment**
 
-- **ERC-1155 Support:**    
+- **🤹‍♀️ERC-1155 Support:**    
 Extend functionalities to support multi token standards.
 
-- **⛓ Multi Chain Deployment**.
+- **⛓⛏ Multi Chain Deployment**.
 
 - **⛓💱 Multi Chain Swapping:** 
     Allow users on one chain to exchange their nfts with users on another chain. assets would retain their native chain.
