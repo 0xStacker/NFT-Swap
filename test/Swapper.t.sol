@@ -20,6 +20,17 @@ contract SwapTest is Test {
     address[] _requestedNfts;
     uint256[] _ownedNftIds;
     uint256[] _requestedNftIds;
+
+    address[] _ownedNfts2;
+    address[] _requestedNfts2;
+    uint256[] _ownedNftIds2;
+    uint256[] _requestedNftIds2;
+
+    address[] _ownedNfts3;
+    address[] _requestedNfts3;
+    uint256[] _ownedNftIds3;
+    uint256[] _requestedNftIds3;
+
     SworpV1.RequestIn swapRequest1;
 
     enum actor {
@@ -67,8 +78,8 @@ contract SwapTest is Test {
                 nft.approve(address(swapper), _ownedNftIds[i]);
             }
         } else {
-            for (uint256 i; i < _requestedNfts.length; i++) {
-                nft2.approve(address(swapper), _requestedNftIds[i]);
+            for (uint256 i; i < _requestedNfts2.length; i++) {
+                nft2.approve(address(swapper), _requestedNftIds2[i]);
             }
         }
         vm.stopPrank();
@@ -84,8 +95,8 @@ contract SwapTest is Test {
         // Requestee Mint
         vm.prank(user2);
         _mintFromCollection2();
-        _requestedNfts.push(address(nft2));
-        _requestedNftIds.push(minted);
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
 
         // Requestee approves requester
         vm.prank(user2);
@@ -96,7 +107,7 @@ contract SwapTest is Test {
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
 
         // Verify swap order
         assertEq(nft.ownerOf(1), address(swapper));
@@ -115,8 +126,8 @@ contract SwapTest is Test {
         // Requestee Mint
         vm.prank(user2);
         _mintFromCollection2();
-        _requestedNfts.push(address(nft2));
-        _requestedNftIds.push(minted);
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
 
         // Requestee approves requester
         vm.prank(user2);
@@ -127,7 +138,7 @@ contract SwapTest is Test {
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
         assertEq(nft.ownerOf(1), address(swapper));
 
         // Fufil swap order
@@ -156,8 +167,8 @@ contract SwapTest is Test {
         // Requestee Mint
         vm.prank(user2);
         _mintFromCollection2();
-        _requestedNfts.push(address(nft2));
-        _requestedNftIds.push(minted);
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
 
         // Requestee approves requester
         vm.prank(user2);
@@ -168,7 +179,7 @@ contract SwapTest is Test {
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
         assertEq(nft.ownerOf(1), address(swapper));
 
         // Fufil swap order
@@ -193,8 +204,8 @@ contract SwapTest is Test {
         // Requestee Mint
         vm.prank(user2);
         _mintFromCollection2();
-        _requestedNfts.push(address(nft2));
-        _requestedNftIds.push(minted);
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
 
         // Requestee approves requester
         vm.prank(user2);
@@ -204,7 +215,7 @@ contract SwapTest is Test {
         approveSwapper(user1, actor.REQUESTER);
 
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
         assertEq(nft.ownerOf(1), address(swapper));
         assertEq(swapper.fetchOrderInbox(user2).length, 1);
 
@@ -235,8 +246,8 @@ contract SwapTest is Test {
         // Requestee Mint
         vm.prank(user2);
         _mintFromCollection2();
-        _requestedNfts.push(address(nft2));
-        _requestedNftIds.push(minted);
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
 
         // Requestee approves requester
         vm.prank(user2);
@@ -247,7 +258,7 @@ contract SwapTest is Test {
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
         assertEq(swapper.fetchOrderInbox(user2).length, 1);
         assertEq(swapper.fetchOrderOutbox(user1).length, 1);
 
@@ -277,8 +288,8 @@ contract SwapTest is Test {
         // Requestee Mint
         vm.prank(user2);
         _mintFromCollection2();
-        _requestedNfts.push(address(nft2));
-        _requestedNftIds.push(minted);
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
 
         // Requester Mint 2
         vm.prank(user1);
@@ -287,8 +298,8 @@ contract SwapTest is Test {
         // Requestee Mint 2
         vm.prank(user2);
         _mintFromCollection2();
-        _requestedNfts.push(address(nft2));
-        _requestedNftIds.push(minted);
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
 
         // Requestee approves requester
         vm.prank(user2);
@@ -299,7 +310,7 @@ contract SwapTest is Test {
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
 
         vm.prank(user2);
         swapper.revokeApproval(user1);
@@ -309,7 +320,78 @@ contract SwapTest is Test {
         _ownedNftIds.push(++minted);
         vm.expectRevert();
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, _requestedNftIds);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+    }
+
+    function testSwapAndAcceptMulti() public {
+        clearNftData();
+
+        // Requester 1 Mint 1
+        vm.prank(user1);
+        _mintFromCollection1();
+        _ownedNfts.push(address(nft));
+        _ownedNftIds.push(++minted);
+
+        // Requestee Mint
+        vm.prank(user2);
+        _mintFromCollection2();
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
+
+        // Requester 2 mint 1
+        vm.prank(user3);
+        _mintFromCollection1();
+        _ownedNfts3.push(address(nft));
+        _ownedNftIds3.push(++minted);
+
+        // Requestee Mint 2
+        vm.prank(user2);
+        _mintFromCollection2();
+
+        // Requester 1 Mint 2
+        vm.prank(user1);
+        _mintFromCollection1();
+        _ownedNfts.push(address(nft));
+        _ownedNftIds.push(++minted);
+
+        // Requestee approves requester
+        vm.startPrank(user2);
+        swapper.approve(user1);
+        swapper.approve(user3);
+        vm.stopPrank();
+
+        // Requester approves swapper
+        approveSwapper(user1, actor.REQUESTER);
+        vm.prank(user3);
+        for (uint256 i; i < _ownedNfts3.length; i++) {
+            nft.approve(address(swapper), _ownedNftIds3[i]);
+        }
+
+        // Create swap orders
+        hoax(user1, 1 ether);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        approveSwapper(user2, actor.REQUESTEE);
+        _requestedNfts2.pop();
+        _requestedNftIds2.pop();
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(2);
+        approveSwapper(user2, actor.REQUESTEE);
+        hoax(user3, 1 ether);
+        _requestSwap(user2, _ownedNfts3, _requestedNfts2, _ownedNftIds3, _requestedNftIds2);
+
+        // fufil orders
+
+        uint256[] memory inbox = swapper.fetchOrderInbox(user2);
+        vm.startPrank(user2);
+        for (uint256 i; i < inbox.length; i++) {
+            swapper.fufilSwapOrder(inbox[i]);
+        }
+        vm.stopPrank();
+
+        // Verify swap
+        assertEq(nft.ownerOf(1), user2);
+        assertEq(nft.ownerOf(3), user2);
+        assertEq(nft.ownerOf(2), user2);
     }
 
     function clearNftData() internal {
@@ -317,6 +399,14 @@ contract SwapTest is Test {
         delete _requestedNfts;
         delete _ownedNftIds;
         delete _requestedNftIds;
+        delete _ownedNfts2;
+        delete _ownedNftIds2;
+        delete _requestedNfts2;
+        delete _requestedNftIds2;
+        delete _ownedNfts3;
+        delete _ownedNftIds3;
+        delete _requestedNfts3;
+        delete _requestedNftIds3;
         minted = 0;
     }
 }
