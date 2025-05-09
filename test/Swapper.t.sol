@@ -3,7 +3,7 @@ pragma solidity ^0.8.6;
 
 import {Test, console} from "forge-std/Test.sol";
 import {SworpV1} from "../src/Swapper.sol";
-import {Nft} from "./NFT-Swap.sol";
+import {Nft} from "./testNft.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract SwapTest is Test {
