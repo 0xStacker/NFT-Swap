@@ -36,7 +36,7 @@ Sworp allows users to:
 - **🛠 Testnet Deployment**
 
 - **🤹‍♀️ERC-1155 Support:**    
-Extend functionalities to support multi token standards.
+    Extend functionalities to support multi token standards.
 
 - **⛓⛏ Multi Chain Deployment**.
 
