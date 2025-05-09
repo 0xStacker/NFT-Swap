@@ -34,7 +34,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     address private _admin;
 
     // Order id counter.
-    uint256 internal _nextOrderId = 1;
+    uint256 internal _nextOrderId;
 
     // General request pool
     mapping(address _fulfiller => mapping(uint256 _orderId => Request)) public _orderPool;
@@ -131,6 +131,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     function initialize(address _adminAddress) external initializer {
         __ReentrancyGuard_init();
         _admin = _adminAddress;
+        _nextOrderId = 1;
     }
 
     receive() external payable {}
@@ -196,7 +197,6 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         outboxRequestIndexTracker[_order.requester][_order.orderId] = ++outboxNextIndexTracker[_order.requester];
         fulfillerInbox[_order.fulfiller].push(_order.orderId);
         requesterOutbox[msg.sender].push(_order.orderId);
-        _nextOrderId++;
 
         emit CreateSwapOrderMulti(_order.requester, _order.fulfiller, _order.orderId);
     }
@@ -363,7 +363,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
                 userCanceledRequests[_requester].push(_order.orderId);
                 userCanceledRequests[_fulfiller].push(_order.orderId);
             } else {
-                _orderPool[_fulfiller][_orderId].status = OrderStatus.completed; // FIX: Add an accepted and rejected flag to request struct
+                _orderPool[_fulfiller][_orderId].status = OrderStatus.completed;
 
                 // Remove order from fulfiller inbox and add it to accepted list
                 removeOrder(Location.inbox, _fulfiller, _orderId);
@@ -420,22 +420,26 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     function removeOrder(Location _from, address _user, uint256 _orderId) internal {
         if (_from == Location.outbox) {
             // Locate order index
-            require(outboxRequestIndexTracker[_user][_orderId] != 0, "Item not in outbox");
-            uint256 itemIndex = --outboxRequestIndexTracker[_user][_orderId];
+            uint256 orderIndex = outboxRequestIndexTracker[_user][_orderId];
+            require(orderIndex != 0, "Item not in outbox");
+            uint256 itemIndex = --orderIndex;
             uint256 lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
             // Swap the order with the last item in the array and remove the last item
             requesterOutbox[_user][itemIndex] = lastItem;
             requesterOutbox[_user].pop();
+            outboxRequestIndexTracker[_user][lastItem] = ++itemIndex;
             outboxRequestIndexTracker[_user][_orderId] = 0;
             outboxNextIndexTracker[_user]--;
         } else {
             // Locate order index
-            require(inboxRequestIndexTracker[_user][_orderId] != 0, "Item not in inbox");
-            uint256 itemIndex = --inboxRequestIndexTracker[_user][_orderId];
+            uint256 orderIndex = inboxRequestIndexTracker[_user][_orderId];
+            require(orderIndex != 0, "Item not in inbox");
+            uint256 itemIndex = --orderIndex;
             uint256 lastItem = fulfillerInbox[_user][fulfillerInbox[_user].length - 1];
             // Swap the order with the last item in the array and remove the last item
             fulfillerInbox[_user][itemIndex] = lastItem;
             fulfillerInbox[_user].pop();
+            inboxRequestIndexTracker[_user][lastItem] = ++itemIndex;
             inboxRequestIndexTracker[_user][_orderId] = 0;
             inboxNextIndexTracker[_user]--;
         }
