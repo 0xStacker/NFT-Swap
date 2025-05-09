@@ -31,7 +31,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     uint256 internal constant FEE_PER_NFT = 0.0005 ether;
 
     // Admin address.
-    address public admin;
+    address private _admin;
 
     // Order id counter.
     uint256 internal _nextOrderId = 1;
@@ -118,7 +118,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     }
 
     modifier onlyAdmin() {
-        if (msg.sender != admin) {
+        if (msg.sender != _admin) {
             revert Swapper__NotAdmin(msg.sender);
         }
         _;
@@ -128,9 +128,9 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         _disableInitializers();
     }
 
-    function initialize(address _admin) external initializer {
+    function initialize(address _adminAddress) external initializer {
         __ReentrancyGuard_init();
-        admin = _admin;
+        _admin = _adminAddress;
     }
 
     receive() external payable {}
@@ -472,6 +472,14 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         require(_amount <= address(this).balance, "Insufficient balance");
         (bool success,) = _fundsReceipieint.call{value: _amount}("");
         require(success, "Withdrawal failed");
+    }
+
+    function setAdmin(address _newAdmin) external onlyAdmin {
+        _admin = _newAdmin;
+    }
+
+    function admin() external view returns (address){
+        return _admin;
     }
 
     // Getter for user inbox.
