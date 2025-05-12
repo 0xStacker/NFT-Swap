@@ -40,10 +40,10 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     mapping(address _fulfiller => mapping(uint256 _orderId => Request)) public _orderPool;
 
     // Keep track of order index inside user inbox for easier removal after completion.
-    mapping(address => mapping(uint256 => uint256 inboxRequestIndex)) public inboxRequestIndexTracker;
+    mapping(address => mapping(uint256 => uint256 inboxOrderIndex)) public inboxOrderIndexTracker;
 
     // Keep track of order index inside user outbox for easier removal after completion.
-    mapping(address => mapping(uint256 => uint256 outboxRequestIndex)) private outboxRequestIndexTracker;
+    mapping(address => mapping(uint256 => uint256 outboxOrderIndex)) private outboxOrderIndexTracker;
 
     // Assign index to the next request in the inbox
     mapping(address => uint256 nextIndex) private inboxNextIndexTracker;
@@ -193,8 +193,8 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
 
         // Store the request in the request pool
         _orderPool[_order.fulfiller][_order.orderId] = _order;
-        inboxRequestIndexTracker[_order.fulfiller][_order.orderId] = ++inboxNextIndexTracker[_order.fulfiller];
-        outboxRequestIndexTracker[_order.requester][_order.orderId] = ++outboxNextIndexTracker[_order.requester];
+        inboxOrderIndexTracker[_order.fulfiller][_order.orderId] = ++inboxNextIndexTracker[_order.fulfiller];
+        outboxOrderIndexTracker[_order.requester][_order.orderId] = ++outboxNextIndexTracker[_order.requester];
         fulfillerInbox[_order.fulfiller].push(_order.orderId);
         requesterOutbox[msg.sender].push(_order.orderId);
 
@@ -317,8 +317,8 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             outboxNextIndexTracker[_order.requester]++;
             inboxNextIndexTracker[_order.fulfiller]++;
             _orderPool[_order.fulfiller][_order.orderId] = _order;
-            inboxRequestIndexTracker[_order.fulfiller][_order.orderId] = inboxNextIndexTracker[_order.fulfiller];
-            outboxRequestIndexTracker[_order.requester][_order.orderId] = outboxNextIndexTracker[_order.requester];
+            inboxOrderIndexTracker[_order.fulfiller][_order.orderId] = inboxNextIndexTracker[_order.fulfiller];
+            outboxOrderIndexTracker[_order.requester][_order.orderId] = outboxNextIndexTracker[_order.requester];
             fulfillerInbox[_order.fulfiller].push(_order.orderId);
             requesterOutbox[msg.sender].push(_order.orderId);
             _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
@@ -420,27 +420,27 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
     function removeOrder(Location _from, address _user, uint256 _orderId) internal {
         if (_from == Location.outbox) {
             // Locate order index
-            uint256 orderIndex = outboxRequestIndexTracker[_user][_orderId];
+            uint256 orderIndex = outboxOrderIndexTracker[_user][_orderId];
             require(orderIndex != 0, "Item not in outbox");
             uint256 itemIndex = --orderIndex;
             uint256 lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
             // Swap the order with the last item in the array and remove the last item
             requesterOutbox[_user][itemIndex] = lastItem;
             requesterOutbox[_user].pop();
-            outboxRequestIndexTracker[_user][lastItem] = ++itemIndex;
-            outboxRequestIndexTracker[_user][_orderId] = 0;
+            outboxOrderIndexTracker[_user][lastItem] = ++itemIndex;
+            outboxOrderIndexTracker[_user][_orderId] = 0;
             outboxNextIndexTracker[_user]--;
         } else {
             // Locate order index
-            uint256 orderIndex = inboxRequestIndexTracker[_user][_orderId];
+            uint256 orderIndex = inboxOrderIndexTracker[_user][_orderId];
             require(orderIndex != 0, "Item not in inbox");
             uint256 itemIndex = --orderIndex;
             uint256 lastItem = fulfillerInbox[_user][fulfillerInbox[_user].length - 1];
             // Swap the order with the last item in the array and remove the last item
             fulfillerInbox[_user][itemIndex] = lastItem;
             fulfillerInbox[_user].pop();
-            inboxRequestIndexTracker[_user][lastItem] = ++itemIndex;
-            inboxRequestIndexTracker[_user][_orderId] = 0;
+            inboxOrderIndexTracker[_user][lastItem] = ++itemIndex;
+            inboxOrderIndexTracker[_user][_orderId] = 0;
             inboxNextIndexTracker[_user]--;
         }
     }
