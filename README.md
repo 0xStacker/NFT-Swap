@@ -24,22 +24,17 @@ Sworp allows users to:
  - Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by Party B.
  - The contract allows for multiple nfts to be involved in a single transaction.
 
-## 👀Features
+## 👀Current Features
 - Trustless Peer to Peer NFT swaps with no central authority
 - Swaps involving 1 to 1 NFTs, 1 to many NFTs, many to 1 NFT and many to many NFTs. Maximum NFTs that can be included in a transaction is capped at 15.
+- Create, cancel, accept, adn reject proposals.  
 
-## 🗺Roadmap
-
+## 🕔 Upcoming Features
 -  **💲 Ability to include tokens within swap order to sweeten deal.**
-
-- **🛠 Front End deployment**
-
-- **🛠 Testnet Deployment**
-
-- **🤹‍♀️ERC-1155 Support:**    
-    Extend functionalities to support multi token standards.
 
 - **⛓⛏ Multi Chain Deployment**.
 
 - **⛓💱 Multi Chain Swapping:** 
     Allow users on one chain to exchange their nfts with users on another chain. assets would retain their native chain.
+
+- 
