@@ -36,5 +36,3 @@ Sworp allows users to:
 
 - **⛓💱 Multi Chain Swapping:** 
     Allow users on one chain to exchange their nfts with users on another chain. assets would retain their native chain.
-
-- 
