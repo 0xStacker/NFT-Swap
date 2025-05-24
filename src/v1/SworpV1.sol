@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {ISwapperErrors} from "./ISworpErrors.sol";
+import {ISwapperErrors} from "../ISworpErrors.sol";
 import {Initializable} from "@openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 /**
  * @title NFT SWAP
