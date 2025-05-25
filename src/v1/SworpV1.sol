@@ -6,8 +6,21 @@ import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {ISwapperErrors} from "../ISworpErrors.sol";
 import {Initializable} from "@openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+
+
 /**
- * @title NFT SWAP
+   /$$$$$$  /$$      /$$  /$$$$$$  /$$$$$$$  /$$$$$$$                     /$$  
+ /$$__  $$| $$  /$ | $$ /$$__  $$| $$__  $$| $$__  $$                  /$$$$  
+| $$  \__/| $$ /$$$| $$| $$  \ $$| $$  \ $$| $$  \ $$       /$$    /$$|_  $$  
+|  $$$$$$ | $$/$$ $$ $$| $$  | $$| $$$$$$$/| $$$$$$$/      |  $$  /$$/  | $$  
+ \____  $$| $$$$_  $$$$| $$  | $$| $$__  $$| $$____/        \  $$/$$/   | $$  
+ /$$  \ $$| $$$/ \  $$$| $$  | $$| $$  \ $$| $$              \  $$$/    | $$  
+|  $$$$$$/| $$/   \  $$|  $$$$$$/| $$  | $$| $$               \  $/    /$$$$$$
+ \______/ |__/     \__/ \______/ |__/  |__/|__/                \_/    |______/
+                                                                        
+ * 
+ * 
+ * @title Sworp 
  * @author 0xstacker "github.com/0xStacker
  * A Trustless tool for exchanging NFTs bewteen two parties A and B.
  * Party A (requester) creates a swap order and sends to party B (fulfiller) indicating they would like to swap
