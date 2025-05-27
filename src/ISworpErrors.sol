@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-interface ISwapperErrors {
+interface ISworpErrors {
     error Swapper__NotOwnedByRequester(address nft, uint256 id);
     error Swapper__NotOwnedByRequestee(address nft, uint256 id);
     error Swapper__SelfOrder();
