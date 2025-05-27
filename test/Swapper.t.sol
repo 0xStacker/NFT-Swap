@@ -2,7 +2,7 @@
 pragma solidity ^0.8.6;
 
 import {Test, console} from "forge-std/Test.sol";
-import {SworpV1} from "../src/v1/SworpV1.sol";
+import {SworpV1} from "../src/v1/Sworp.sol";
 import {Nft} from "./testNft.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
 
@@ -46,6 +46,10 @@ contract SwapTest is Test {
             address(swapper), address(this), abi.encodeWithSignature("initialize(address)", address(this))
         );
         swapper = SworpV1(payable(address(proxy)));
+    }
+
+    function testImplementationAdmin() public view{
+        assertEq(swapper.admin(), address(this), "Admin should be the deployer");
     }
 
     function _requestSwap(
