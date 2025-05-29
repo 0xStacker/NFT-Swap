@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
+
 import {ISworpErrors} from "./ISworpErrors.sol";
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 
@@ -92,7 +93,7 @@ abstract contract SworpUtils is ISworpErrors {
     }
 
     // Struct to collect the request data for cross-chain orders.
-    struct xChainOrderIn{
+    struct xChainOrderIn {
         uint64 dstChainId;
         address fulfiller;
         address[] ownedNfts;
@@ -102,7 +103,7 @@ abstract contract SworpUtils is ISworpErrors {
     }
 
     // Struct to hold the finalized cross-chain order data.
-    struct xChainOrder{
+    struct xChainOrder {
         address requester;
         address fulfiller;
         uint256 orderId;
@@ -129,7 +130,6 @@ abstract contract SworpUtils is ISworpErrors {
         _;
     }
 
-
     /// @dev Checks if a given contract address supports the standard ERC721 interface
     function checkERC721InterfaceSupport(address _nft) internal view returns (bool) {
         try IERC721(_nft).supportsInterface(type(IERC721).interfaceId) returns (bool result) {
@@ -145,7 +145,7 @@ abstract contract SworpUtils is ISworpErrors {
      * @param _user is the user's address.
      * @param _orderId is the unique identifier for the request.
      */
-    function removeOrder(Location _from, address _user, uint256 _orderId) internal virtual{
+    function removeOrder(Location _from, address _user, uint256 _orderId) internal virtual {
         if (_from == Location.outbox) {
             // Locate order index
             uint256 orderIndex = outboxOrderIndexTracker[_user][_orderId];
@@ -181,7 +181,6 @@ abstract contract SworpUtils is ISworpErrors {
         return _admin;
     }
 
-
     // Getter for user inbox.
     function fetchOrderInbox(address _user) external view returns (uint256[] memory) {
         return fulfillerInbox[_user];
@@ -213,5 +212,4 @@ abstract contract SworpUtils is ISworpErrors {
     function getOrder(uint256 _orderId) public view returns (Request memory) {
         return _orderPool[msg.sender][_orderId];
     }
-
 }
