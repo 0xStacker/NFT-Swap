@@ -1,25 +1,24 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
+
 import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "@openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import {SworpUtils} from "../SworpUtils.sol";
 
-
 /**
-   /$$$$$$  /$$      /$$  /$$$$$$  /$$$$$$$  /$$$$$$$                     /$$  
- /$$__  $$| $$  /$ | $$ /$$__  $$| $$__  $$| $$__  $$                  /$$$$  
-| $$  \__/| $$ /$$$| $$| $$  \ $$| $$  \ $$| $$  \ $$       /$$    /$$|_  $$  
-|  $$$$$$ | $$/$$ $$ $$| $$  | $$| $$$$$$$/| $$$$$$$/      |  $$  /$$/  | $$  
- \____  $$| $$$$_  $$$$| $$  | $$| $$__  $$| $$____/        \  $$/$$/   | $$  
- /$$  \ $$| $$$/ \  $$$| $$  | $$| $$  \ $$| $$              \  $$$/    | $$  
-|  $$$$$$/| $$/   \  $$|  $$$$$$/| $$  | $$| $$               \  $/    /$$$$$$
- \______/ |__/     \__/ \______/ |__/  |__/|__/                \_/    |______/
-                                                                        
- * 
- * 
- * @title Sworp 
+ * /$$$$$$  /$$      /$$  /$$$$$$  /$$$$$$$  /$$$$$$$                     /$$
+ *  /$$__  $$| $$  /$ | $$ /$$__  $$| $$__  $$| $$__  $$                  /$$$$
+ * | $$  \__/| $$ /$$$| $$| $$  \ $$| $$  \ $$| $$  \ $$       /$$    /$$|_  $$
+ * |  $$$$$$ | $$/$$ $$ $$| $$  | $$| $$$$$$$/| $$$$$$$/      |  $$  /$$/  | $$
+ *  \____  $$| $$$$_  $$$$| $$  | $$| $$__  $$| $$____/        \  $$/$$/   | $$
+ *  /$$  \ $$| $$$/ \  $$$| $$  | $$| $$  \ $$| $$              \  $$$/    | $$
+ * |  $$$$$$/| $$/   \  $$|  $$$$$$/| $$  | $$| $$               \  $/    /$$$$$$
+ *  \______/ |__/     \__/ \______/ |__/  |__/|__/                \_/    |______/
+ *
+ *
+ * @title Sworp
  * @author 0xstacker "github.com/0xStacker
  * A Trustless tool for exchanging NFTs bewteen two parties A and B.
  * Party A (requester) creates a swap order and sends to party B (fulfiller) indicating they would like to swap
@@ -31,9 +30,7 @@ import {SworpUtils} from "../SworpUtils.sol";
  * The contract allows for multiple nfts to be involved in a single transaction.
  * Transactions involving a 1 to 1 nft swap are free.
  */
-
-contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, SworpUtils{
- 
+contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, SworpUtils {
     constructor() {
         _disableInitializers();
     }
@@ -239,7 +236,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
      */
     function fufilSwapOrder(uint256 _orderId) external onlyFulfiller(getOrder(_orderId)) {
         Request memory _order = _orderPool[msg.sender][_orderId];
-        if (_order.status == OrderStatus.completed) {
+        if (_order.status != OrderStatus.pending) {
             revert Swapper__BadOrder();
         }
 
@@ -289,7 +286,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
      */
     function rejectOrder(uint256 _orderId) public {
         Request memory _order = _orderPool[msg.sender][_orderId];
-        if (_order.status == OrderStatus.completed) {
+        if (_order.status != OrderStatus.pending) {
             revert Swapper__BadOrder();
         }
 
@@ -312,7 +309,6 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         emit RejectSwapOrder(_orderId);
     }
 
-
     /**
      * @dev Allows a requester to cancel their request.
      * @param _orderId is the identifier of the request.
@@ -320,7 +316,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
      */
     function cancelOrder(address _to, uint256 _orderId) external {
         Request memory _order = _orderPool[_to][_orderId];
-        if (_order.status == OrderStatus.completed) {
+        if (_order.status != OrderStatus.pending) {
             revert Swapper__BadOrder();
         }
         address _requester = _order.requester;
@@ -345,7 +341,6 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
         (bool success,) = _fundsReceipieint.call{value: _amount}("");
         require(success, "Withdrawal failed");
     }
-
 
     /**
      * @dev Allow a user to be able to send a swap request.
