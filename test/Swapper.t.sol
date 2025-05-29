@@ -48,7 +48,7 @@ contract SwapTest is Test {
         swapper = SworpV1(payable(address(proxy)));
     }
 
-    function testImplementationAdmin() public view{
+    function testImplementationAdmin() public view {
         assertEq(swapper.admin(), address(this), "Admin should be the deployer");
     }
 
