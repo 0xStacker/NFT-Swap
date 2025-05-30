@@ -1,38 +1,32 @@
 
 # SWORP
-Sworp is a trustless, peer-to-peer NFT swapping protocol designed for secure, decentralized exchanges between two parties without intermediaries.
 
-## 🔍Overview
-Sworp allows users to:
-
-- **Create Swap Order:** Propose an exchange to another user by specifying the NFTs you wish to offer and the NFTs you desire in return.
-
-- **Accept Orders**: Agree to swap proposals sent to you, facilitating a direct exchange.
-
-- **Reject Orders**: 
-    Reject a swap proposal if you're not happy with the deal.
-
-- **Cancel Pending Orders**: Withdraw your swap proposal before they're accepted. 
+## ⚠ Problem
+Nft asset exchange between peers on social media can be risky. Often it would require one of the involved parties to
+trust the other, usually the person that sends their asset first. another way would be to include an escrow but both parties would have to trust the escrow in this case.
+![Live Scanario](./xscenario.PNG "Live Scenario")
 
 
-## 🛠How It Works
+## 🛠 Solution
+A carefully designed trustless, peer-to-peer NFT swapping protocol for secure, decentralized exchanges of NFTs between two parties without intermediaries while also giving involved parties full control over their assets.
 
- - Party A (requester) creates a swap order and sends to party B (fulfiller) indicating they would like to swap their Nft(s) for an Nft(s) owned by Party B.
- - Contract takes custody of Party A's Nft(s) and sends the request to Party B's inbox
- - Party B can accept or reject the request. If Party B accepts, the swap transaction is executed
- - If Party B rejects, Party A's nft is returned to their wallet.
- - Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by Party B.
- - The contract allows for multiple nfts to be involved in a single transaction.
+
+## 🔁Flow Of Actions
+* User A (requester) creates a swap order and sends to user B (fulfiller) indicating they would like to swap their Nft(s) for an Nft(s) owned by party B.
+* Contract takes custody of user A's Nft(s) and sends the request to user B's inbox
+* User B can accept or reject the request. If user B accepts, the swap transaction is executed
+* If user B rejects, user A's nft is returned to their wallet.
+* user A also has the ability to cancel their request provided it hasn't been accepted/rejected by user B, effectively preventing asset being locked in the contract.
 
 ## 👀Current Features
 - Trustless Peer to Peer NFT swaps with no central authority
 - Swaps involving 1 to 1 NFTs, 1 to many NFTs, many to 1 NFT and many to many NFTs. Maximum NFTs that can be included in a transaction is capped at 15.
-- Create, cancel, accept, adn reject proposals.  
+- Create, cancel, accept, and reject offers.  
 
-## 🕔 Upcoming Features
--  **💲 Ability to include tokens within swap order to sweeten deal.**
+## 🗺 Roadmap
+- [ ] 💲 Ability to include tokens within swap order to sweeten deal.**
 
-- **⛓⛏ Multi Chain Deployment**.
+- [ ] ⛓⛏ Multi Chain Deployment**.
 
-- **⛓💱 Multi Chain Swapping:** 
-    Allow users on one chain to exchange their nfts with users on another chain. assets would retain their native chain.
+- [ ] 🔗Crosschain nft swapping
+
