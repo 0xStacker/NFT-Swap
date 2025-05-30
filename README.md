@@ -4,6 +4,8 @@
 ## ⚠ Problem
 Nft asset exchange between peers on social media can be risky. Often it would require one of the involved parties to
 trust the other, usually the person that sends their asset first. another way would be to include an escrow but both parties would have to trust the escrow in this case.
+
+
 ![Live Scanario](./xscenario.PNG "Live Scenario")
 
 
