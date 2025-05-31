@@ -12,6 +12,10 @@ interface ISworpErrors {
     error Swapper__FulfillerInboxFull(uint8 size);
     error Swapper__NotAdmin(address user);
     error Swapper__InsufficientOrderFee(uint256 fee);
+    error Swapper__InsufficientAllowance(address token, uint256 amount);
+    error Swapper__InsufficientTokenBalance(address token, uint256 amount);
+    error Swapper__EthTransferFailed(address to, uint256 amount);
+    error Swapper__ERC20TransferFailed(address token, address to, uint256 amount);
 
     event CreateSwapOrder(address indexed from, address to, uint256 orderId);
     event CreateSwapOrderMulti(address indexed from, address to, uint256 orderId);
