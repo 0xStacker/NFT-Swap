@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
 import {ISworpErrors} from "./ISworpErrors.sol";
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
@@ -72,6 +73,11 @@ abstract contract SworpUtils is ISworpErrors {
         uint256 tokenId;
     }
 
+    struct FungibleToken {
+        address contractAddress;
+        uint256 amount;
+    }
+
     // Struct to collect the request data.
     struct RequestIn {
         address fulfiller;
@@ -79,6 +85,7 @@ abstract contract SworpUtils is ISworpErrors {
         address[] requestedNfts;
         uint256[] ownedNftIds;
         uint256[] requestedNftIds;
+        FungibleToken token;
     }
 
     // Finalized order data after order has been given an id.
@@ -90,6 +97,7 @@ abstract contract SworpUtils is ISworpErrors {
         address[] requestedNfts;
         uint256[] ownedNftIds;
         uint256[] requestedNftIds;
+        FungibleToken token;
         OrderStatus status;
     }
 
@@ -193,7 +201,7 @@ abstract contract SworpUtils is ISworpErrors {
      * @dev Allow a user to be able to send a swap request.
      * @param _user is the user address to be approved.
      */
-    function approve(address _user) external {
+    function sworpApprove(address _user) external {
         approvedAddresses[msg.sender][_user] = true;
     }
 
@@ -201,7 +209,7 @@ abstract contract SworpUtils is ISworpErrors {
      * @dev Prevent an address from sending a request
      * @param _user is the user address whose approval is to be revoked.
      */
-    function revokeApproval(address _user) external {
+    function revokeSworpApproval(address _user) external {
         approvedAddresses[msg.sender][_user] = false;
     }
 
