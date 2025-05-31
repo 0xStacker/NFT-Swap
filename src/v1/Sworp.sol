@@ -2,6 +2,7 @@
 pragma solidity ^0.8.15;
 
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
+import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "@openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import {SworpUtils} from "../SworpUtils.sol";
@@ -158,6 +159,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
             requestedNfts: _inRequest.requestedNfts,
             ownedNftIds: _inRequest.ownedNftIds,
             requestedNftIds: _inRequest.requestedNftIds,
+            token: _inRequest.token,
             status: OrderStatus.pending
         });
 
@@ -219,7 +221,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
             fulfillerInbox[_order.fulfiller].push(_order.orderId);
             requesterOutbox[msg.sender].push(_order.orderId);
             _ownedNft.safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
-            // refund sent fee
+            // refund fee if sent
             if (msg.value > 0) {
                 payable(msg.sender).transfer(msg.value);
             }
@@ -233,7 +235,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
      * @notice Only the fulfiller provided in the request data can accept the request
      * @notice Automatically rejects if the fulfiller no longer hold the required nft.
      */
-    function fufilSwapOrder(uint256 _orderId) external onlyFulfiller(getOrder(_orderId)) {
+    function fufilSwapOrder(uint256 _orderId) external payable onlyFulfiller(getOrder(_orderId)) {
         Request memory _order = _orderPool[msg.sender][_orderId];
         if (_order.status != OrderStatus.pending) {
             revert Swapper__BadOrder();
@@ -271,9 +273,36 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
 
                 userAcceptedRequests[_requester].push(_order.orderId);
 
+                // Handle orders involving fungible tokens.
+
+                if (_order.token.amount > 0) {
+                    // Native token
+                    if (_order.token.contractAddress == address(0)) {
+                        require(msg.value >= _order.token.amount, "Swapper__InsufficientOrderFee");
+                        (bool success,) = payable(_requester).call{value: _order.token.amount}("");
+                        if (!success) {
+                            revert Swapper__EthTransferFailed(_requester, _order.token.amount);
+                        }
+                    }
+                    // ERC20 tokens
+                    else {
+                        IERC20 token = IERC20(_order.token.contractAddress);
+
+                        if (token.balanceOf(msg.sender) < _order.token.amount) {
+                            revert Swapper__InsufficientTokenBalance(_order.token.contractAddress, _order.token.amount);
+                        }
+                        bool success = token.transferFrom(msg.sender, _requester, _order.token.amount);
+                        if (!success) {
+                            revert Swapper__ERC20TransferFailed(
+                                _order.token.contractAddress, _requester, _order.token.amount
+                            );
+                        }
+                    }
+                }
                 // Fufil swap order
                 _requestedNft.safeTransferFrom(msg.sender, _requester, _requestedNftId);
                 _requesterNft.safeTransferFrom(address(this), _fulfiller, _requesterNftId);
+
                 emit FufillSwapOrder(_orderId);
             }
         }
