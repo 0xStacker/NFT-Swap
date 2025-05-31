@@ -30,11 +30,15 @@ Sworp is a trustless, peer-to-peer NFT swapping protocol that enables secure and
 - ✅ Core Actions: Create, cancel, accept, or reject offers with ease.  
 
 ## 🗺 Roadmap
-- [ ] 💲 Add support for tokens in swap orders (e.g ETH or ERC20 tokens to sweeten deals)
+- [x] 💲 Add support for FT (fungible tokens) in swap orders (e.g Chain-Native Coin or ERC20 tokens).
+
+- [ ] Direct NFT swaps for FT
 
 - [ ] ⛓⛏ Deploy on multiple evm chain
 
 - [ ] 🔗 Enable cross-chain NFT swaps
+
+- [ ] Cross-chain NFT(s) to FT swaps
 
 - [ ] 🔍👾 Audits
 
