@@ -55,8 +55,9 @@ Sworp enables gamers to securely exchange in-game NFT assets with other players 
 ### 🛠 Builders & Developers
 Sworp is modular and on-chain, making it a great base for integrating into marketplaces, wallets, or community dApps.
 
-### 💡Inspiration
-    This project was inspired by an <a href="https://x.com/999nood/status/1879602719293686124">interaction</a> between user <a href="https://x.com/999nood">@999nood</a> and <a href="https://x.com/theTrafficante">@Trafficante</a> on X. 
+
+## 💡Inspiration
+This project was inspired by an <a href="https://x.com/999nood/status/1879602719293686124">interaction</a> between user <a href="https://x.com/999nood">@999nood</a> and <a href="https://x.com/theTrafficante">@Trafficante</a> on X. 
 
 
 ![Inspiration Tweet](./xscenario.PNG)
