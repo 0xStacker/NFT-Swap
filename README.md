@@ -3,11 +3,7 @@
 
 ## ⚠ Problem
 Nft asset exchanges on social media are often risky. Typically, it requires one party (usually the person that sends their asset first)to
-trust the other. An alternative is to use an offchain escrow, but this introduces another trust layer in which both parties would have to trust the escrow provider. This is how a lot of people get scammed.
-
-
-![Example Scanario](./xscenario.PNG "Example SScenario")
-
+trust the other. An alternative is to use an offchain escrow, but this introduces another trust layer in which both parties would have to trust the escrow provider.
 
 ## 🛠 Solution
 Sworp is a trustless, peer-to-peer NFT swapping protocol that enables secure and decentralized exchanges of NFTs between two parties. It removes intermediaries and offers full protection of user assets throughout the swap process.
@@ -45,16 +41,21 @@ Sworp is a trustless, peer-to-peer NFT swapping protocol that enables secure and
 - [ ] 🏗 Production Deployment
 
 ## Who Is This For
-Sworp is designed to empower various participants in the NFT and web3 ecosystem by providing a safer, decentralized way to trade valuable digital assets:
+    Sworp is designed to empower various participants in the NFT and web3 ecosystem by providing a safer, decentralized way to trade valuable digital assets:
 
 🎨 **NFT Collectors & Traders**
-Traditional over-the-counter trades on social media are risky and prone to scams. Sworp offers a secure way to directly swap NFTs with other collectors; no need to "go first" or rely on sketchy middlemen.
+    Traditional over-the-counter trades on social media are risky and prone to scams. Sworp offers a secure way to directly swap NFTs with other collectors; no need to "go first" or rely on sketchy middlemen.
 
 **👥Web3 Communities and Daos**
-DAO and NFT community members can use Sworp for fair, verifiable swaps between members, ideal for cross-collection events or internal trades.
+    DAO and NFT community members can use Sworp for fair, verifiable swaps between members, ideal for cross-collection events or internal trades.
 
 **🎮 Web3 Gamers**
-Sworp enables gamers to securely exchange in-game NFT assets with other players directly, no middlemen and no risk of getting scammed.
+    Sworp enables gamers to securely exchange in-game NFT assets with other players directly, no middlemen and no risk of getting scammed.
 
 **🛠 Builders & Developers**
-Sworp is modular and on-chain, making it a great base for integrating into marketplaces, wallets, or community dApps.
+    Sworp is modular and on-chain, making it a great base for integrating into marketplaces, wallets, or community dApps.
+
+**💡 Inspiration**
+    This project was inspired by an <a href="https://x.com/999nood/status/1879602719293686124">interaction</a> between user <a href="https://x.com/999nood">@999nood</a> and <a href="https://x.com/theTrafficante">@Trafficante</a> on X. 
+
+    ![Inspiration Tweet](./xscenario.PNG)
