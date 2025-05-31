@@ -40,8 +40,8 @@ Sworp is a trustless, peer-to-peer NFT swapping protocol that enables secure and
 
 - [ ] 🏗 Production Deployment
 
-## Who Is This For
-    Sworp is designed to empower various participants in the NFT and web3 ecosystem by providing a safer, decentralized way to trade valuable digital assets:
+## 👥Who Is This For
+Sworp is designed to empower various participants in the NFT and web3 ecosystem by providing a safer, decentralized way to trade valuable digital assets:
 
 🎨 **NFT Collectors & Traders**
     Traditional over-the-counter trades on social media are risky and prone to scams. Sworp offers a secure way to directly swap NFTs with other collectors; no need to "go first" or rely on sketchy middlemen.
@@ -58,4 +58,5 @@ Sworp is a trustless, peer-to-peer NFT swapping protocol that enables secure and
 **💡 Inspiration**
     This project was inspired by an <a href="https://x.com/999nood/status/1879602719293686124">interaction</a> between user <a href="https://x.com/999nood">@999nood</a> and <a href="https://x.com/theTrafficante">@Trafficante</a> on X. 
 
-    ![Inspiration Tweet](./xscenario.PNG)
+    
+![Inspiration Tweet](./xscenario.PNG)
