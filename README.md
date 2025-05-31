@@ -2,33 +2,59 @@
 # SWORP
 
 ## ⚠ Problem
-Nft asset exchange between peers on social media can be risky. Often it would require one of the involved parties to
-trust the other, usually the person that sends their asset first. another way would be to include an escrow but both parties would have to trust the escrow in this case.
+Nft asset exchanges on social media are often risky. Typically, it requires one party (usually the person that sends their asset first)to
+trust the other. An alternative is to use an offchain escrow, but this introduces another trust layer in which both parties would have to trust the escrow provider. This is how a lot of people get scammed.
 
 
-![Live Scanario](./xscenario.PNG "Live Scenario")
+![Example Scanario](./xscenario.PNG "Example SScenario")
 
 
 ## 🛠 Solution
-A carefully designed trustless, peer-to-peer NFT swapping protocol for secure, decentralized exchanges of NFTs between two parties without intermediaries while also giving involved parties full control over their assets.
+Sworp is a trustless, peer-to-peer NFT swapping protocol that enables secure and decentralized exchanges of NFTs between two parties. It removes intermediaries and offers full protection of user assets throughout the swap process.
 
 
-## 🔁Flow Of Actions
-* User A (requester) creates a swap order and sends to user B (fulfiller) indicating they would like to swap their Nft(s) for an Nft(s) owned by party B.
-* Contract takes custody of user A's Nft(s) and sends the request to user B's inbox
-* User B can accept or reject the request. If user B accepts, the swap transaction is executed
-* If user B rejects, user A's nft is returned to their wallet.
-* user A also has the ability to cancel their request provided it hasn't been accepted/rejected by user B, effectively preventing asset being locked in the contract.
+## 🔁How It Works
+* User A (**requester**) initiate a swap order, proposing to exchange their Nft(s) for an Nft(s) owned by User B(**Fulfiller**).
+* Sworp smart contract takes custody of user A's Nft(s) and sends the offer to user B's inbox
+* User B can either
+    
+    - **Accept** : The contract performs the swap and transfers the NFT(s) accordingly.
+    - **Reject**: User A's NFTs are returned.
 
-## 👀Current Features
-- Trustless Peer to Peer NFT swaps with no central authority
-- Swaps involving 1 to 1 NFTs, 1 to many NFTs, many to 1 NFT and many to many NFTs. Maximum NFTs that can be included in a transaction is capped at 15.
-- Create, cancel, accept, and reject offers.  
+
+* user A may also cancel the request any time before user B responds, ensuring assets are not locked indefinitely.
+
+## 🔍Current Features
+- 🔐 Trustless Peer to Peer NFT swaps with no central authority
+- 🔁 Flexible Swap Types:
+    - 1-to-1
+    - 1-to-many
+    - many-to-1
+    - many-to-many(up to 15 NFTs per transaction)
+- ✅ Core Actions: Create, cancel, accept, or reject offers with ease.  
 
 ## 🗺 Roadmap
-- [ ] 💲 Ability to include tokens within swap order to sweeten deal.**
+- [ ] 💲 Add support for tokens in swap orders (e.g ETH or ERC20 tokens to sweeten deals)
 
-- [ ] ⛓⛏ Multi Chain Deployment**.
+- [ ] ⛓⛏ Deploy on multiple evm chain
 
-- [ ] 🔗Crosschain nft swapping
+- [ ] 🔗 Enable cross-chain NFT swaps
 
+- [ ] 🔍👾 Audits
+
+- [ ] 🏗 Production Deployment
+
+## Who Is This For
+Sworp is designed to empower various participants in the NFT and web3 ecosystem by providing a safer, decentralized way to trade valuable digital assets:
+
+🎨 **NFT Collectors & Traders**
+Traditional over-the-counter trades on social media are risky and prone to scams. Sworp offers a secure way to directly swap NFTs with other collectors; no need to "go first" or rely on sketchy middlemen.
+
+**👥Web3 Communities and Daos**
+DAO and NFT community members can use Sworp for fair, verifiable swaps between members, ideal for cross-collection events or internal trades.
+
+**🎮 Web3 Gamers**
+Sworp enables gamers to securely exchange in-game NFT assets with other players directly, no middlemen and no risk of getting scammed.
+
+**🛠 Builders & Developers**
+Sworp is modular and on-chain, making it a great base for integrating into marketplaces, wallets, or community dApps.
