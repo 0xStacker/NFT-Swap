@@ -15,7 +15,7 @@ contract SwapTest is Test {
     address user2 = address(234);
     address user3 = address(456);
     uint8 minted;
-
+    SworpV1.FungibleToken token;
     address[] _ownedNfts;
     address[] _requestedNfts;
     uint256[] _ownedNftIds;
@@ -57,13 +57,15 @@ contract SwapTest is Test {
         address[] memory _ownedNft,
         address[] memory _requestedNft,
         uint256[] memory _ownedTokenId,
-        uint256[] memory _requestedTokenId
+        uint256[] memory _requestedTokenId,
+        SworpV1.FungibleToken memory _token
     ) internal {
         swapRequest1.fulfiller = _requestee;
         swapRequest1.ownedNfts = _ownedNft;
         swapRequest1.requestedNfts = _requestedNft;
         swapRequest1.ownedNftIds = _ownedTokenId;
         swapRequest1.requestedNftIds = _requestedTokenId;
+        swapRequest1.token = _token;
         swapper.createSwapOrder{value: 0.1 ether}(swapRequest1);
     }
 
@@ -104,14 +106,14 @@ contract SwapTest is Test {
 
         // Requestee approves requester
         vm.prank(user2);
-        swapper.approve(user1);
+        swapper.sworpApprove(user1);
 
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
 
         // Verify swap order
         assertEq(nft.ownerOf(1), address(swapper));
@@ -135,14 +137,14 @@ contract SwapTest is Test {
 
         // Requestee approves requester
         vm.prank(user2);
-        swapper.approve(user1);
+        swapper.sworpApprove(user1);
 
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
         assertEq(nft.ownerOf(1), address(swapper));
 
         // Fufil swap order
@@ -176,14 +178,14 @@ contract SwapTest is Test {
 
         // Requestee approves requester
         vm.prank(user2);
-        swapper.approve(user1);
+        swapper.sworpApprove(user1);
 
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
         assertEq(nft.ownerOf(1), address(swapper));
 
         // Fufil swap order
@@ -213,13 +215,13 @@ contract SwapTest is Test {
 
         // Requestee approves requester
         vm.prank(user2);
-        swapper.approve(user1);
+        swapper.sworpApprove(user1);
 
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
 
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
         assertEq(nft.ownerOf(1), address(swapper));
         assertEq(swapper.fetchOrderInbox(user2).length, 1);
 
@@ -255,14 +257,14 @@ contract SwapTest is Test {
 
         // Requestee approves requester
         vm.prank(user2);
-        swapper.approve(user1);
+        swapper.sworpApprove(user1);
 
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
         assertEq(swapper.fetchOrderInbox(user2).length, 1);
         assertEq(swapper.fetchOrderOutbox(user1).length, 1);
 
@@ -307,24 +309,24 @@ contract SwapTest is Test {
 
         // Requestee approves requester
         vm.prank(user2);
-        swapper.approve(user1);
+        swapper.sworpApprove(user1);
 
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
 
         // Create swap order
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
 
         vm.prank(user2);
-        swapper.revokeApproval(user1);
+        swapper.revokeSworpApproval(user1);
         _ownedNfts.pop();
         _ownedNftIds.pop();
         _ownedNfts.push(address(nft));
         _ownedNftIds.push(++minted);
         vm.expectRevert();
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
     }
 
     function testSwapAndAcceptMulti() public {
@@ -360,8 +362,8 @@ contract SwapTest is Test {
 
         // Requestee approves requester
         vm.startPrank(user2);
-        swapper.approve(user1);
-        swapper.approve(user3);
+        swapper.sworpApprove(user1);
+        swapper.sworpApprove(user3);
         vm.stopPrank();
 
         // Requester approves swapper
@@ -373,7 +375,7 @@ contract SwapTest is Test {
 
         // Create swap orders
         hoax(user1, 1 ether);
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
         approveSwapper(user2, actor.REQUESTEE);
         _requestedNfts2.pop();
         _requestedNftIds2.pop();
@@ -381,7 +383,7 @@ contract SwapTest is Test {
         _requestedNftIds2.push(2);
         approveSwapper(user2, actor.REQUESTEE);
         hoax(user3, 1 ether);
-        _requestSwap(user2, _ownedNfts3, _requestedNfts2, _ownedNftIds3, _requestedNftIds2);
+        _requestSwap(user2, _ownedNfts3, _requestedNfts2, _ownedNftIds3, _requestedNftIds2, token);
 
         // fufil orders
 
@@ -396,6 +398,55 @@ contract SwapTest is Test {
         assertEq(nft.ownerOf(1), user2);
         assertEq(nft.ownerOf(3), user2);
         assertEq(nft.ownerOf(2), user2);
+    }
+
+    function testNftSwapWithEth() public {
+        clearNftData();
+        // Requester Mint
+        vm.prank(user1);
+        _mintFromCollection1();
+        _ownedNfts.push(address(nft));
+        _ownedNftIds.push(++minted);
+
+        // Requestee Mint
+        vm.prank(user2);
+        _mintFromCollection2();
+        _requestedNfts2.push(address(nft2));
+        _requestedNftIds2.push(minted);
+
+        // Requestee approves requester
+        vm.prank(user2);
+        swapper.sworpApprove(user1);
+
+        // Requester approves swapper
+        approveSwapper(user1, actor.REQUESTER);
+
+        // Create swap order
+        hoax(user1, 1 ether);
+        token.amount = 0.1 ether;
+        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, _requestedNftIds2, token);
+        assertEq(nft.ownerOf(1), address(swapper));
+        uint256 user1bal = user1.balance;
+        console.log("previous user 1 bal", user1bal);
+        // Fufil swap order
+        approveSwapper(user2, actor.REQUESTEE);
+        deal(user2, 1 ether);
+        vm.startPrank(user2);
+        uint256 user2bal = user2.balance;
+        console.log("previous user 2 bal:", user2bal);
+        swapper.fufilSwapOrder{value: 0.1 ether}(swapper.fetchOrderInbox(user2)[0]);
+        vm.stopPrank();
+        // Verify swap order
+        console.log("new user1 bal: ", user1.balance);
+        console.log("new user2 bal: ", user2.balance);
+        assertEq(user1.balance, user1bal + token.amount);
+        assertEq(user2.balance, user2bal - token.amount);
+        assertEq(nft.ownerOf(1), user2);
+        assertEq(nft2.ownerOf(1), user1);
+        assertEq(swapper.fetchOrderInbox(user2).length, 0);
+        assertEq(swapper.fetchOrderOutbox(user1).length, 0);
+        assertEq(swapper.fetchAcceptedOrders(user2).length, 1);
+        assertEq(swapper.fetchAcceptedOrders(user1).length, 1);
     }
 
     function clearNftData() internal {
