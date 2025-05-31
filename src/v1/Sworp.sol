@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import {IERC721Receiver} from "@openzeppelin/token/ERC721/IERC721Receiver.sol";
 import {IERC721} from "@openzeppelin/token/ERC721/IERC721.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "@openzeppelin-upgradeable/proxy/utils/Initializable.sol";
@@ -30,7 +29,7 @@ import {SworpUtils} from "../SworpUtils.sol";
  * The contract allows for multiple nfts to be involved in a single transaction.
  * Transactions involving a 1 to 1 nft swap are free.
  */
-contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, SworpUtils {
+contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
     constructor() {
         _disableInitializers();
     }
@@ -333,32 +332,5 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, IERC721Receiver, 
             _requesterNft.safeTransferFrom(address(this), _order.requester, ownedNft.tokenId);
         }
         emit CancelSwapOrder(_orderId);
-    }
-
-    // Admin fee withdrawal
-    function withdrawFees(address payable _fundsReceipieint, uint256 _amount) external onlyAdmin {
-        require(_amount <= address(this).balance, "Insufficient balance");
-        (bool success,) = _fundsReceipieint.call{value: _amount}("");
-        require(success, "Withdrawal failed");
-    }
-
-    /**
-     * @dev Allow a user to be able to send a swap request.
-     * @param _user is the user address to be approved.
-     */
-    function approve(address _user) external {
-        approvedAddresses[msg.sender][_user] = true;
-    }
-
-    /**
-     * @dev Prevent an address from sending a request
-     * @param _user is the user address whose approval is to be revoked.
-     */
-    function revokeApproval(address _user) external {
-        approvedAddresses[msg.sender][_user] = false;
-    }
-
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
-        return IERC721Receiver.onERC721Received.selector;
     }
 }
