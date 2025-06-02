@@ -22,6 +22,17 @@ abstract contract SworpUtils is ISworpErrors {
     // Order id counter.
     uint256 internal _nextOrderId;
 
+    // order market contains all the created orders
+    mapping(uint256 => Request) orderMarket;
+
+    // pending pool contains all pending orders.
+
+    Request[] pendingPool;
+
+    mapping(uint256 => uint256) _orderIndexTracker
+
+    uint nextIndexAssigner;
+
     // General request pool
     mapping(address => mapping(uint256 => Request)) public _orderPool;
 
@@ -79,13 +90,20 @@ abstract contract SworpUtils is ISworpErrors {
     }
 
     // Struct to collect the request data.
+    /**
+     * NFT => NFT
+     * NFT => FT
+     * NFT => FT + NFT
+     * NFT + FT => NFT + FT
+     * NFT + FT => NFT
+     */
     struct RequestIn {
         address fulfiller;
         address[] ownedNfts;
         address[] requestedNfts;
         uint256[] ownedNftIds;
-        uint256[] requestedNftIds;
-        FungibleToken token;
+        FungibleToken offeringToken;
+        FungibleToken requestedToken;
     }
 
     // Finalized order data after order has been given an id.
@@ -96,8 +114,8 @@ abstract contract SworpUtils is ISworpErrors {
         address[] ownedNfts;
         address[] requestedNfts;
         uint256[] ownedNftIds;
-        uint256[] requestedNftIds;
-        FungibleToken token;
+        FungibleToken requestedToken;
+        FungibleToken offeringToken;
         OrderStatus status;
     }
 
@@ -126,7 +144,7 @@ abstract contract SworpUtils is ISworpErrors {
     // Modifiers
 
     modifier onlyFulfiller(Request memory _order) {
-        if (msg.sender != _order.fulfiller) {
+        if (_order.fulfiller != address(0) && msg.sender != _order.fulfiller){
             revert Swapper__InvalidFulfiller(msg.sender);
         }
         _;
@@ -154,32 +172,45 @@ abstract contract SworpUtils is ISworpErrors {
      * @param _user is the user's address.
      * @param _orderId is the unique identifier for the request.
      */
-    function removeOrder(Location _from, address _user, uint256 _orderId) internal virtual {
-        if (_from == Location.outbox) {
-            // Locate order index
-            uint256 orderIndex = outboxOrderIndexTracker[_user][_orderId];
-            require(orderIndex != 0, "Item not in outbox");
+    function removeOrder(uint256 _orderId) internal virtual {
+        // Locate order index
+        uint orderIndex = orderIndexTracker[_orderId];
+        require(orderIndex != 0, "Item not in outbox");
             uint256 itemIndex = --orderIndex;
-            uint256 lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
+            uint256 lastItem = orderPool[orderPool.length - 1];
             // Swap the order with the last item in the array and remove the last item
-            requesterOutbox[_user][itemIndex] = lastItem;
-            requesterOutbox[_user].pop();
-            outboxOrderIndexTracker[_user][lastItem] = ++itemIndex;
-            outboxOrderIndexTracker[_user][_orderId] = 0;
+            orderPool[itemIndex] = lastItem;
+            orderPool.pop();
+            orderIndexTracker[lastItem] = ++itemIndex;
+            orderIndexTracker[_orderId] = 0;
             outboxNextIndexTracker[_user]--;
-        } else {
-            // Locate order index
-            uint256 orderIndex = inboxOrderIndexTracker[_user][_orderId];
-            require(orderIndex != 0, "Item not in inbox");
-            uint256 itemIndex = --orderIndex;
-            uint256 lastItem = fulfillerInbox[_user][fulfillerInbox[_user].length - 1];
-            // Swap the order with the last item in the array and remove the last item
-            fulfillerInbox[_user][itemIndex] = lastItem;
-            fulfillerInbox[_user].pop();
-            inboxOrderIndexTracker[_user][lastItem] = ++itemIndex;
-            inboxOrderIndexTracker[_user][_orderId] = 0;
-            inboxNextIndexTracker[_user]--;
-        }
+
+
+        // if (_from == Location.outbox) {
+        //     // Locate order index
+        //     uint256 orderIndex = outboxOrderIndexTracker[_user][_orderId];
+        //     require(orderIndex != 0, "Item not in outbox");
+        //     uint256 itemIndex = --orderIndex;
+        //     uint256 lastItem = requesterOutbox[_user][requesterOutbox[_user].length - 1];
+        //     // Swap the order with the last item in the array and remove the last item
+        //     requesterOutbox[_user][itemIndex] = lastItem;
+        //     requesterOutbox[_user].pop();
+        //     outboxOrderIndexTracker[_user][lastItem] = ++itemIndex;
+        //     outboxOrderIndexTracker[_user][_orderId] = 0;
+        //     outboxNextIndexTracker[_user]--;
+        // } else {
+        //     // Locate order index
+        //     uint256 orderIndex = inboxOrderIndexTracker[_user][_orderId];
+        //     require(orderIndex != 0, "Item not in inbox");
+        //     uint256 itemIndex = --orderIndex;
+        //     uint256 lastItem = fulfillerInbox[_user][fulfillerInbox[_user].length - 1];
+        //     // Swap the order with the last item in the array and remove the last item
+        //     fulfillerInbox[_user][itemIndex] = lastItem;
+        //     fulfillerInbox[_user].pop();
+        //     inboxOrderIndexTracker[_user][lastItem] = ++itemIndex;
+        //     inboxOrderIndexTracker[_user][_orderId] = 0;
+        //     inboxNextIndexTracker[_user]--;
+        // }
     }
 
     function setAdmin(address _newAdmin) external virtual onlyAdmin {
