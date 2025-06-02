@@ -8,6 +8,7 @@ interface ISworpErrors {
     error Swapper__InvalidAddress();
     error Swapper__NotApproved(address requester);
     error Swapper__BadOrder();
+    error Swapper__BadOrderMatch();
     error Swapper__InvalidFulfiller(address impersonator);
     error Swapper__FulfillerInboxFull(uint8 size);
     error Swapper__NotAdmin(address user);
