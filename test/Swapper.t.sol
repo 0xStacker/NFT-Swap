@@ -31,6 +31,11 @@ contract SwapTest is Test {
     uint256[] _ownedNftIds3;
     uint256[] _requestedNftIds3;
 
+    enum Location{
+        OWNED_NFTS,
+        REQUESTED_NFTS
+    }
+
     SworpV1.RequestIn swapRequest1;
 
     enum actor {
@@ -59,16 +64,23 @@ contract SwapTest is Test {
         uint256[] memory _ownedTokenId,
         SworpV1.FungibleToken memory _offeringToken,
         SworpV1.FungibleToken memory _requestedToken
-    ) internal {
+    ) internal returns(uint orderId){
         swapRequest1.fulfiller = _requestee;
         swapRequest1.ownedNfts = _ownedNft;
         swapRequest1.requestedNfts = _requestedNft;
         swapRequest1.ownedNftIds = _ownedTokenId;
         swapRequest1.requestedToken = _requestedToken;
         swapRequest1.offeringToken = _offeringToken;
-        swapper.createSwapOrder{value: _offeringToken.contractAddress == address(0) ? _offeringToken.amount : 0}(
+        orderId = swapper.createSwapOrder{value: _offeringToken.contractAddress == address(0) ? _offeringToken.amount : 0}(
             swapRequest1
         );
+    }
+
+
+    function _matchOrder(address matcher, uint ftAmount, uint orderId, SworpV1.Nft[] memory _match) internal{
+        SworpV1.Request memory order = swapper.getOrder(orderId);
+        vm.prank(matcher);
+        swapper.matchOrder{value: order.offeringToken.contractAddress == address(0) ? ftAmount : 0}(order, _match);
     }
 
     function _mintFromCollection1() internal returns (uint256 tokenId) {
@@ -86,26 +98,56 @@ contract SwapTest is Test {
                 nft.approve(address(swapper), _ownedNftIds[i]);
             }
         } else {
-            for (uint256 i; i < _requestedNfts2.length; i++) {
-                nft2.approve(address(swapper), _requestedNftIds2[i]);
+            for (uint256 i; i < _requestedNfts.length; i++) {
+                nft2.approve(address(swapper), _requestedNftIds[i]);
             }
         }
         vm.stopPrank();
     }
 
-    function testRequestSwapNftToNft() public {
-        uint256 tokenId;
-        // Requester Mint
-        vm.prank(user1);
-        tokenId = _mintFromCollection1();
-        _ownedNfts.push(address(nft));
-        _ownedNftIds.push(tokenId);
 
-        // Requestee Mint
-        vm.prank(user2);
-        tokenId = _mintFromCollection2();
-        _requestedNfts2.push(address(nft2));
-        _requestedNftIds2.push(tokenId);
+    function _mintAndPush(address _to, uint8 _collection, uint _amount, Location _location) internal {
+        for (uint256 i; i < _amount; i++) {
+            if (_collection == 1) {
+                hoax(_to, 0.1 ether);
+                uint256 tokenId = nft.mint();
+                if (_location == Location.OWNED_NFTS) {
+                    _ownedNfts.push(address(nft));
+                    _ownedNftIds.push(tokenId);
+                } else {
+                    _requestedNfts.push(address(nft));
+                    _requestedNftIds.push(tokenId);
+                }
+            } else {
+                hoax(_to, 0.1 ether);
+                uint256 tokenId = nft2.mint();
+                if (_location == Location.OWNED_NFTS) {
+                    _ownedNfts.push(address(nft2));
+                    _ownedNftIds.push(tokenId);
+                } else {
+                    _requestedNfts.push(address(nft2));
+                    _requestedNftIds.push(tokenId);
+                }
+            }
+        }
+    }
+
+    function assertOwner(Nft _nft, uint[] memory _tokens, address _owner) internal view returns (bool) {
+        for (uint256 i; i < _tokens.length; i++) {
+            if( _nft.ownerOf(_tokens[i]) != _owner) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function testRequestSwapNftToNft() public {
+
+        uint256 sentOrder;
+  
+        _mintAndPush(user1, 1, 1, Location.OWNED_NFTS);
+
+        _mintAndPush(user2, 2, 1, Location.REQUESTED_NFTS);
 
         // Requester approves swapper
         approveSwapper(user1, actor.REQUESTER);
@@ -113,13 +155,66 @@ contract SwapTest is Test {
         // Create swap order
         hoax(user1, 1 ether);
 
-        _requestSwap(user2, _ownedNfts, _requestedNfts2, _ownedNftIds, token, token);
-
+        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, token, token);
+        sentOrder++;
         // Verify swap order
-        assertEq(nft.ownerOf(1), address(swapper));
-        assertEq(swapper.fetchPendingOrders().length, 1);
+        bool _ownedNftOwnerCheck = assertOwner(nft, _ownedNftIds, address(swapper));
+        assertEq(_ownedNftOwnerCheck, true);
+        assertEq(swapper.fetchPendingOrders().length, sentOrder);
+        assertEq(swapper.fetchPendingOrders()[sentOrder - 1], sentOrder);
     }
 
+    function testFuzzRequestNftToNft(uint _runs) public{
+        clearNftData();
+        vm.assume(_runs > 0 && _runs < 5);
+        // Requester Mint
+        _mintAndPush(user1, 1, _runs, Location.OWNED_NFTS);
+
+        // Requestee Mint
+        _mintAndPush(user2, 2, _runs, Location.REQUESTED_NFTS);
+
+        // Requester approves swapper
+        approveSwapper(user1, actor.REQUESTER);
+
+        // Create swap order
+        hoax(user1, 1 ether);
+        _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, token, token);
+        bool _ownedNftOwnerCheck = assertOwner(nft, _ownedNftIds, address(swapper));
+        assertEq(_ownedNftOwnerCheck, true);
+    }
+
+
+    function testNftToNftSwapAndMatchNoFungibles(uint8 creatorAmount, uint8 matcherAmount) public{
+        vm.assume(creatorAmount > 0 && creatorAmount < 5 && matcherAmount > 0 && matcherAmount < 5);
+         _mintAndPush(user1, 1, creatorAmount, Location.OWNED_NFTS);
+
+        // Requestee Mint
+        _mintAndPush(user2, 2, matcherAmount, Location.REQUESTED_NFTS);
+
+        // Requester approves swapper
+        approveSwapper(user1, actor.REQUESTER);
+        
+        // Requestee approve swapper
+        approveSwapper(user2, actor.REQUESTEE);
+
+        // Create swap order
+        hoax(user1, 1 ether);
+        uint orderId = _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, token, token);
+        uint ftAmount = swapper.getOrder(orderId).requestedToken.amount;
+        SworpV1.Nft[] memory matchData = new SworpV1.Nft[](matcherAmount);
+        for (uint i; i < matcherAmount; i++){
+            SworpV1.Nft memory data;
+            data.contractAddress = _requestedNfts[i];
+            data.tokenId = _requestedNftIds[i];
+            matchData[i] = data;
+        }
+        _matchOrder(user2, ftAmount, orderId, matchData);
+        bool _ownedNftOwnerCheck = assertOwner(nft, _ownedNftIds, user2);
+        bool _requestedNftOwnerCheck = assertOwner(nft2, _requestedNftIds, user1);
+        assertEq(_ownedNftOwnerCheck, true);
+        assertEq(_requestedNftOwnerCheck, true);
+
+    }
     // function testRequestSwapAndAccept() public {
     //     clearNftData();
     //     // Requester Mint
