@@ -47,7 +47,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
      * @dev Initiate an nft swap order that involves multiple nfts.
      * @param _orderParams holds the request data. see Request struct.
      */
-    function createSwapOrder(RequestIn memory _orderParams) external payable nonReentrant {
+    function createSwapOrder(RequestIn memory _orderParams) external payable nonReentrant returns(uint){
         Request memory _order = Request({
             orderId: _nextOrderId++,
             requester: msg.sender,
@@ -72,11 +72,6 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
             revert Swapper__SelfOrder();
         }
 
-        // Ensure that the fulfiller has approved the requester's address.
-        // if (!approvedAddresses[_order.fulfiller][_order.requester]) {
-        //     revert Swapper__NotApproved(_order.requester);
-        // }
-
         uint256 totalOwnedNfts = _order.ownedNfts.length;
 
         // Contract takes custody of the requester's nfts.
@@ -98,7 +93,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
                 IERC721(ownedNft.contractAddress).safeTransferFrom(msg.sender, address(this), ownedNft.tokenId);
             }
         }
-
+  
         // Contract takes custody of requester's tokens if involved
         if (_order.offeringToken.amount > 0) {
             // Native token
@@ -130,7 +125,12 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
         orderMarket[_order.orderId] = _order;
         // Add the order to the order pool.
         orderPool.push(_order.orderId);
-        emit CreateSwapOrderMulti(_order.requester, _order.fulfiller, _order.orderId);
+        //assign index
+        _orderIndexTracker[_order.orderId] = orderPool.length;
+
+        
+        emit CreateSwapOrder(_order.requester, _order.fulfiller, _order.orderId);
+        return _order.orderId;
     }
 
     /**
@@ -172,7 +172,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
 
             // Ensure that the order fulfiller still has the nft involved.
             if (_orderedNft.ownerOf(_match[i].tokenId) != msg.sender) {
-                rejectOrder(_order.orderId);
+                cancelOrder(_order.orderId);
             } else {
                 _orderedNft.safeTransferFrom(msg.sender, _order.requester, requestedNft.tokenId);
             }
@@ -186,32 +186,13 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
         emit FufillSwapOrder(_order.orderId);
     }
 
-    /**
-     * @dev Reject an incoming request.
-     * @param _orderId is the identifier for the request.
-     */
-    function rejectOrder(uint256 _orderId) public {
-        Request memory _order = orderMarket[_orderId];
-        if (_order.status != OrderStatus.pending) {
-            revert Swapper__BadOrder();
-        }
-
-        orderMarket[_orderId].status = OrderStatus.completed;
-
-        for (uint256 i; i < _order.ownedNfts.length; i++) {
-            Nft memory ownedNft = Nft({contractAddress: _order.ownedNfts[i], tokenId: _order.ownedNftIds[i]});
-            IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
-            _requesterNft.safeTransferFrom(address(this), _order.requester, ownedNft.tokenId);
-        }
-        emit RejectSwapOrder(_orderId);
-    }
 
     /**
      * @dev Allows a requester to cancel their request.
      * @param _orderId is the identifier of the request.
      * @notice A requester can only cancel their request if the fulfiller has not accepted or rejected the request at their end.
      */
-    function cancelOrder(uint256 _orderId) external {
+    function cancelOrder(uint256 _orderId) public {
         Request memory _order = orderMarket[_orderId];
         if (_order.status != OrderStatus.pending) {
             revert Swapper__BadOrder();
