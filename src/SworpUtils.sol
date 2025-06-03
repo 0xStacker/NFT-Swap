@@ -28,8 +28,6 @@ abstract contract SworpUtils is ISworpErrors {
 
     mapping(uint256 => uint256) internal _orderIndexTracker;
 
-    uint256 nextIndexAssigner;
-
     // User's approved addresses. Only adresses aproved by user can send nft swap requests.
 
     mapping(address => mapping(address => bool)) public approvedAddresses;
@@ -134,7 +132,7 @@ abstract contract SworpUtils is ISworpErrors {
     function removeOrder(uint256 _orderId) internal virtual {
         // Locate order index
         uint256 orderIndex = _orderIndexTracker[_orderId];
-        require(orderIndex != 0, "Item not in outbox");
+        require(orderIndex != 0, "Item not in pending");
         uint256 itemIndex = --orderIndex;
         uint256 lastItem = orderPool[orderPool.length - 1];
         // Swap the order with the last item in the array and remove the last item
@@ -142,7 +140,6 @@ abstract contract SworpUtils is ISworpErrors {
         orderPool.pop();
         _orderIndexTracker[lastItem] = ++itemIndex;
         _orderIndexTracker[_orderId] = 0;
-        nextIndexAssigner--;
     }
 
     function setAdmin(address _newAdmin) external virtual onlyAdmin {
