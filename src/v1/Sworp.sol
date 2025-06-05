@@ -133,21 +133,21 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
     }
 
     /**
-     * @dev Match any order
-     * @param _order holds the request data. see Request struct.
+     * @dev Match public order
      * @notice if fulfiller is not set for an order, anyone with the required asset can match the order,
      * @notice Automatically rejects if the fulfiller no longer hold the required nft.
      */
-    function matchOrder(PublicOrder memory _order, Nft[] calldata _match)
+    function matchOrder(uint256 orderId, Nft[] calldata _match)
         external
         payable
-        onlyFulfiller(_order)
+        onlyFulfiller(getOrder(orderId))
         nonReentrant
     {
+        PublicOrder memory _order = getOrder(orderId);
         if (_order.status != OrderStatus.pending) {
             revert Swapper__BadOrder();
         }
-        _order.fulfiller = msg.sender;
+        _order.fulfiller = _order.fulfiller == address(0) ? msg.sender : _order.fulfiller;
 
         uint256 totalRequestedNfts = _order.requestedNfts.length;
         uint256 totalOwnedNfts = _order.ownedNfts.length;
