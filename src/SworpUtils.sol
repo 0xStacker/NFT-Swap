@@ -11,7 +11,7 @@ abstract contract SworpUtils is ISworpErrors {
     uint8 internal constant FULFILLER_INBOX_LIMIT = 10;
 
     // Maximum number of nfts that can be included in a single transaction.
-    uint8 internal constant MAX_TRADEABLE_NFT = 15;
+    uint8 internal constant MAX_TRADEABLE_NFT = 5;
 
     // Admin address.
     address internal _admin;
@@ -20,7 +20,7 @@ abstract contract SworpUtils is ISworpErrors {
     uint256 internal _nextOrderId;
 
     // order market contains all the created orders
-    mapping(uint256 => Request) orderMarket;
+    mapping(uint256 => PublicOrder) orderMarket;
 
     // pending pool contains all pending orders.
 
@@ -56,7 +56,7 @@ abstract contract SworpUtils is ISworpErrors {
      * NFT + FT => NFT + FT
      * NFT + FT => NFT
      */
-    struct RequestIn {
+    struct PublicOrderParams {
         address fulfiller;
         address[] ownedNfts;
         address[] requestedNfts;
@@ -66,7 +66,7 @@ abstract contract SworpUtils is ISworpErrors {
     }
 
     // Finalized order data after order has been given an id.
-    struct Request {
+    struct PublicOrder {
         address requester;
         address fulfiller;
         uint256 orderId;
@@ -76,6 +76,16 @@ abstract contract SworpUtils is ISworpErrors {
         FungibleToken requestedToken;
         FungibleToken offeringToken;
         OrderStatus status;
+    }
+
+    struct DirectSwapOrderIn {
+        address fulfiller;
+        address[] ownedNfts;
+        address[] requestedNfts;
+        uint256[] ownedNftIds;
+        uint256[] requestedNftIds;
+        FungibleToken requestedToken;
+        FungibleToken offeringToken;
     }
 
     // Struct to collect the request data for cross-chain orders.
@@ -102,7 +112,7 @@ abstract contract SworpUtils is ISworpErrors {
 
     // Modifiers
 
-    modifier onlyFulfiller(Request memory _order) {
+    modifier onlyFulfiller(PublicOrder memory _order) {
         if (_order.fulfiller != address(0) && msg.sender != _order.fulfiller) {
             revert Swapper__InvalidFulfiller(msg.sender);
         }
@@ -184,7 +194,7 @@ abstract contract SworpUtils is ISworpErrors {
     /**
      * @dev Get the order details.
      */
-    function getOrder(uint256 _orderId) public view returns (Request memory) {
+    function getOrder(uint256 _orderId) public view returns (PublicOrder memory) {
         return orderMarket[_orderId];
     }
 }
