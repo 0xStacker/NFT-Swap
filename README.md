@@ -14,25 +14,25 @@ trust the other. An alternative is to use an offchain escrow, but this introduce
 
 Sworp offers a range of options that allows user to easily swap nft assets with peers in a safe and secure manner.
 
-**Swap Order Combinations**
-`- NFT ==> NFT`
-`- NFT ==> NFT + FT(ETH/ERC20)` 
-`- NFT + FT ==> NFT + FT(ETH/ERC20)` 
-`- NFT + FT(ETH/ERC20) ==> NFT`
+**Swap Order Combinations:**
+- `NFT ==> NFT`
+- `NFT ==> NFT + FT(ETH/ERC20)` 
+- `NFT + FT ==> NFT + FT(ETH/ERC20)` 
+- `NFT + FT(ETH/ERC20) ==> NFT`
 
 **Swap Order categories includes:**
-1. **`Public Swap Order`**: Public swap order allows users to put their assets up in exchange for ones that can typically be matched by anyone. For instance a user might put up their NFT up for swap for any NFT from the same or a different collection, so any holder of that collection is typically allowed to match the order with whatever tokenId they're holding.
+1. **`Public Swap Order`**: Public swap order allows users to put their assets up in exchange for ones that can typically be matched by anyone. For instance a user might put up their NFT up for swap for any NFT from the same or a different collection, so any holder of that collection is typically allowed to match the order with whatever tokenId they're holding. 
 
-> **Best suited for cases where**:
-> - The order creator want to swap their NFT
+    **Best suited for cases where**:
+    - The order creator want to swap their NFT
  (s) for another NFT(s) from the same or a 
 different collection with or without added fungible tokens without caring about the specifics of the NFT(s)
-> - The order creator wants to swap their NFT(s) directly for a fungible token.
+    - The order creator wants to swap their NFT(s) directly for a fungible token.
 
 
 2. **`Targeted Swap Order:`** This type of order basically allows a user to select a number of specifc assets they're willing to swap their assets for. Only holders of those assets can match the order.
-> **Best suited for cases where:** 
-> - order creator wants specific tokens from the same or different collections with or without fungible tokens involved.
+ **Best suited for cases where:** 
+    - order creator wants specific tokens from the same or different collections with or without fungible tokens involved.
 
 3. **`Private Swap Order:`** This type of orders is best suitable for peers who are farmiliar with one another, It allows a user to direct an order to a specific address and only that address can match the other regardless if there are other people who have the required assets to match it. 
 
