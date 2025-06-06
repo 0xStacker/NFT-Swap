@@ -1,38 +1,55 @@
 
-# SWORP
+![Sworp Logo](./assets/sworp_logo.png)
 
-## ⚠ Problem
-Nft asset exchanges on social media are often risky. Typically, it requires one party (usually the person that sends their asset first)to
+
+
+Peer-to-peer Nft asset exchanges on social media are often risky. Typically, it requires one party (usually the person that sends their asset first)to
 trust the other. An alternative is to use an offchain escrow, but this introduces another trust layer in which both parties would have to trust the escrow provider.
 
 ## 🛠 Solution
-Sworp is a trustless, peer-to-peer NFT swapping protocol that enables secure and decentralized exchanges of NFTs between two parties. It removes intermediaries and offers full protection of user assets throughout the swap process.
+> **Sworp** is a trustless, peer-to-peer NFT swapping protocol that enables secure and decentralized exchanges of NFTs between two parties. It removes intermediaries and offers full protection of user assets throughout the swap process.
 
 
 ## 🔁How It Works
-* User A (**requester**) initiate a swap order, proposing to exchange their Nft(s) for an Nft(s) owned by User B(**Fulfiller**).
-* Sworp smart contract takes custody of user A's Nft(s) and sends the offer to user B's inbox
-* User B can either
-    
-    - **Accept** : The contract performs the swap and transfers the NFT(s) accordingly.
-    - **Reject**: User A's NFTs are returned.
+
+Sworp offers a range of options that allows user to easily swap nft assets with peers in a safe and secure manner.
+
+**Swap Order Combinations**
+`- NFT ==> NFT`
+`- NFT ==> NFT + FT(ETH/ERC20)` 
+`- NFT + FT ==> NFT + FT(ETH/ERC20)` 
+`- NFT + FT(ETH/ERC20) ==> NFT`
+
+**Swap Order categories includes:**
+1. **`Public Swap Order`**: Public swap order allows users to put their assets up in exchange for ones that can typically be matched by anyone. For instance a user might put up their NFT up for swap for any NFT from the same or a different collection, so any holder of that collection is typically allowed to match the order with whatever tokenId they're holding.
+
+> **Best suited for cases where**:
+> - The order creator want to swap their NFT
+ (s) for another NFT(s) from the same or a 
+different collection with or without added fungible tokens without caring about the specifics of the NFT(s)
+> - The order creator wants to swap their NFT(s) directly for a fungible token.
 
 
-* user A may also cancel the request any time before user B responds, ensuring assets are not locked indefinitely.
+2. **`Targeted Swap Order:`** This type of order basically allows a user to select a number of specifc assets they're willing to swap their assets for. Only holders of those assets can match the order.
+> **Best suited for cases where:** 
+> - order creator wants specific tokens from the same or different collections with or without fungible tokens involved.
+
+3. **`Private Swap Order:`** This type of orders is best suitable for peers who are farmiliar with one another, It allows a user to direct an order to a specific address and only that address can match the other regardless if there are other people who have the required assets to match it. 
+
 
 ## 🔍Current Features
 - 🔐 Trustless Peer to Peer NFT swaps with no central authority
-- 🔁 Flexible Swap Types:
-    - 1-to-1
-    - 1-to-many
-    - many-to-1
-    - many-to-many(up to 15 NFTs per transaction)
-- ✅ Core Actions: Create, cancel, accept, or reject offers with ease.  
+- 🔁 Flexible swap types allowing up to 5 NFTS per transaction with the ability to include or request fungibles as part of the deal.
 
-## 🗺 Roadmap
-- [x] 💲 Add support for FT (fungible tokens) in swap orders (e.g Chain-Native Coin or ERC20 tokens).
+- ✅ Core Actions: Create, cancel, accept, swap offers with ease.  
 
-- [ ] Direct NFT swaps for FT
+## 🗺 Roadmap2
+
+- [ ] Targeted orders: Allows user to create an order targeted at a range of specific nfts not necesarilly owned by a single matcher
+
+- [ ] Offer based batering allowing multiple potential matchers of a public or targeted offer to present counter offers giving the creator the chance to select the best deal.
+
+- [ ] Allow the matcher for a direct offer to provide counter offer, leaving room for negotiation.
 
 - [ ] ⛓⛏ Deploy on multiple evm chain
 
@@ -64,4 +81,4 @@ Sworp is modular and on-chain, making it a great base for integrating into marke
 This project was inspired by an <a href="https://x.com/999nood/status/1879602719293686124">interaction</a> between user <a href="https://x.com/999nood">@999nood</a> and <a href="https://x.com/theTrafficante">@Trafficante</a> on X. 
 
 
-![Inspiration Tweet](./xscenario.PNG)
+![Inspiration Tweet](./assets/xscenario.PNG)
