@@ -468,6 +468,16 @@ contract SwapTest is Test {
         _matchOrder(user2, ftAmount, orderId, matchData, true);
     }
 
+    function testCancelPublicOrder() public{
+        clearNftData();
+        testRequestSwapNftToNft();
+        vm.prank(user1);
+        swapper.cancelOrder(swapper.fetchPendingOrders()[0]);
+        bool _ownedNftOwnerCheck = assertOwner(nft, _ownedNftIds, user1);
+        assertEq(_ownedNftOwnerCheck, true);
+        assertEq(swapper.fetchPendingOrders().length, 0, "Pending orders should be empty after cancellation");
+    }
+
     function clearNftData() internal {
         delete _ownedNfts;
         delete _requestedNfts;
