@@ -65,17 +65,16 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
         }
 
         if (_order.ownedNfts.length > MAX_TRADEABLE_NFT || _order.requestedNfts.length > MAX_TRADEABLE_NFT) {
-            revert Swapper__BadOrder();
+            revert Swapper__ERC721LimitExceeded(MAX_TRADEABLE_NFT);
         }
 
         if (_order.requester == _order.fulfiller) {
             revert Swapper__SelfOrder();
         }
 
-        uint256 totalOwnedNfts = _order.ownedNfts.length;
 
         // Contract takes custody of the requester's nfts.
-        for (uint256 i; i < totalOwnedNfts; i++) {
+        for (uint256 i; i < _order.ownedNfts.length; i++) {
             Nft memory ownedNft = Nft({contractAddress: _order.ownedNfts[i], tokenId: _order.ownedNftIds[i]});
             if (ownedNft.contractAddress == address(0)) {
                 revert Swapper__BadOrder();
@@ -99,7 +98,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
             // Native token
             if (_order.offeringToken.contractAddress == address(0)) {
                 if (msg.value < _order.offeringToken.amount) {
-                    revert Swapper__InsufficientOrderFee(msg.value);
+                    revert Swapper__InsufficientFunds(msg.value);
                 }
                 (bool success,) = payable(address(this)).call{value: _order.offeringToken.amount}("");
                 if (!success) {
@@ -128,7 +127,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
         //assign index
         _orderIndexTracker[_order.orderId] = orderPool.length;
 
-        emit CreateSwapOrder(_order.requester, _order.fulfiller, _order.orderId);
+        emit CreateSwapOrder(_order.requester, _order.orderId);
         return _order.orderId;
     }
 
@@ -153,7 +152,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
         uint256 totalOwnedNfts = _order.ownedNfts.length;
 
         orderMarket[_order.orderId].status = OrderStatus.completed;
-
+        orderMarket[_order.orderId].fulfiller = _order.fulfiller;
         // Ensure that the match data is valid.
         bool matched = _verifyMatchData(_order, _match);
         if (!matched) {
@@ -184,12 +183,12 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
             IERC721 _ownedNft = IERC721(ownedNft.contractAddress);
             _ownedNft.safeTransferFrom(address(this), _order.fulfiller, ownedNft.tokenId);
         }
-        emit FufillSwapOrder(_order.orderId);
+        emit MatchSwapOrder(_order.fulfiller, _order.orderId);
     }
 
     /**
-     * @dev Allows a requester to cancel their request.
-     * @param _orderId is the identifier of the request.
+     * @dev Allows a requester to cancel their order.
+     * @param _orderId is the identifier of the order.
      * @notice A requester can only cancel their request if the fulfiller has not accepted or rejected the request at their end.
      */
     function cancelOrder(uint256 _orderId) public {
@@ -198,22 +197,26 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
             revert Swapper__BadOrder();
         }
         orderMarket[_orderId].status = OrderStatus.completed;
-
+        // remove order from the order pool.
+        removeOrder(_orderId);
         for (uint256 i; i < _order.ownedNfts.length; i++) {
             Nft memory ownedNft = Nft({contractAddress: _order.ownedNfts[i], tokenId: _order.ownedNftIds[i]});
             IERC721 _requesterNft = IERC721(ownedNft.contractAddress);
             _requesterNft.safeTransferFrom(address(this), _order.requester, ownedNft.tokenId);
         }
-        emit CancelSwapOrder(_orderId);
+        emit CancelSwapOrder(_order.requester, _orderId);
     }
 
+    /***
+     * @dev Handle orders involving fungible tokens
+     * @notice defaults to eth if a token address is not set.
+     */
     function _handleTokens(PublicOrder memory _order) internal {
-        // Handle orders involving fungible tokens.
 
         // Native token
         if (_order.requestedToken.contractAddress == address(0)) {
             if (msg.value < _order.requestedToken.amount) {
-                revert Swapper__InsufficientOrderFee(msg.value);
+                revert Swapper__InsufficientFunds(msg.value);
             }
 
             (bool success,) = payable(_order.requester).call{value: _order.requestedToken.amount}("");
@@ -243,7 +246,7 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
             // Native token
             if (_order.offeringToken.contractAddress == address(0)) {
                 if (address(this).balance < _order.offeringToken.amount) {
-                    revert Swapper__InsufficientOrderFee(address(this).balance);
+                    revert Swapper__InsufficientFunds(address(this).balance);
                 }
                 (bool success,) = payable(_order.fulfiller).call{value: _order.offeringToken.amount}("");
                 if (!success) {
@@ -268,6 +271,9 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
         }
     }
 
+    /***
+     * @dev verify that the assets provided by the matcher can beused
+     */
     function _verifyMatchData(PublicOrder memory _order, Nft[] calldata _match) internal pure returns (bool) {
         // Verify that the match contract address is valid as required by the order.
         for (uint256 i; i < _order.requestedNfts.length; i++) {
