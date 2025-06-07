@@ -2,7 +2,6 @@
 ![Sworp Logo](./assets/sworp_logo.png)
 
 
-
 Peer-to-peer Nft asset exchanges on social media are often risky. Typically, it requires one party (usually the person that sends their asset first)to
 trust the other. An alternative is to use an offchain escrow, but this introduces another trust layer in which both parties would have to trust the escrow provider.
 
@@ -43,9 +42,7 @@ different collection with or without added fungible tokens without caring about 
 
 - ✅ Core Actions: Create, cancel, accept, swap offers with ease.  
 
-## 🗺 Roadmap2
-
-- [ ] Targeted orders: Allows user to create an order targeted at a range of specific nfts not necesarilly owned by a single matcher
+## 🗺 Roadmap
 
 - [ ] Offer based batering allowing multiple potential matchers of a public or targeted offer to present counter offers giving the creator the chance to select the best deal.
 
@@ -53,16 +50,14 @@ different collection with or without added fungible tokens without caring about 
 
 - [ ] ⛓⛏ Deploy on multiple evm chain
 
-- [ ] 🔗 Enable cross-chain NFT swaps
-
-- [ ] Cross-chain NFT(s) to FT swaps
+- [ ] 🔗 Cross-chain swaps
 
 - [ ] 🔍👾 Audits
 
 - [ ] 🏗 Production Deployment
 
 ## 👥Who Is This For
-Sworp is designed to empower various participants in the NFT and web3 ecosystem by providing a safer, decentralized way to trade valuable digital assets:
+**Sworp** is designed to empower various participants in the NFT and web3 ecosystem by providing a safer, decentralized way to trade valuable digital assets peer-to-peer style:
 
 ### 🎨 NFT Collectors & Traders
 Traditional over-the-counter trades on social media are risky and prone to scams. Sworp offers a secure way to directly swap NFTs with other collectors; no need to "go first" or rely on sketchy middlemen.
