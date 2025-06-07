@@ -48,13 +48,18 @@ abstract contract SworpUtils is ISworpErrors {
         uint256 amount;
     }
 
-    // Struct to collect the request data.
     /**
+     * @dev Struct to collect the request data for orders.
+     * @notice If fulfiller is not set, and requestedNftIds are not specified,
+     *  the order is public and can be fulfilled by anyone with the right asset.
+     * @notice If fulfiller is set, the order is private and can only be fulfilled by the specified fulfiller.
+     * @notice The order can be a combination of NFTs and fungible tokens as shown below:
      * NFT => NFT
      * NFT => FT
      * NFT => FT + NFT
      * NFT + FT => NFT + FT
      * NFT + FT => NFT
+     * 
      */
     struct PublicOrderParams {
         address fulfiller;
@@ -114,7 +119,7 @@ abstract contract SworpUtils is ISworpErrors {
 
     modifier onlyFulfiller(PublicOrder memory _order) {
         if (_order.fulfiller != address(0) && msg.sender != _order.fulfiller) {
-            revert Swapper__InvalidFulfiller(msg.sender);
+            revert Swapper__InvalidMatcher(_order.fulfiller);
         }
         _;
     }
@@ -165,14 +170,6 @@ abstract contract SworpUtils is ISworpErrors {
         require(_amount <= address(this).balance, "Insufficient balance");
         (bool success,) = _fundsReceipieint.call{value: _amount}("");
         require(success, "Withdrawal failed");
-    }
-
-    /**
-     * @dev Allow a user to be able to send a swap request.
-     * @param _user is the user address to be approved.
-     */
-    function sworpApprove(address _user) external {
-        approvedAddresses[msg.sender][_user] = true;
     }
 
     /**
