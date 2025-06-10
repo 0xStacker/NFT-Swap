@@ -20,15 +20,7 @@ import {SworpUtils} from "../SworpUtils.sol";
  *
  * @title Sworp
  * @author 0xstacker "github.com/0xStacker
- * A Trustless tool for exchanging NFTs bewteen two parties A and B.
- * Party A (requester) creates a swap order and sends to party B (fulfiller) indicating they would like to swap
- * their Nft(s) for an Nft(s) owned by party B.
- * Contract takes custody of party A's Nft(s) and sends the request to party B's inbox
- * party B can accept or reject the request. If party B accepts, the swap transaction is executed
- * If party B rejects, party A's nft is returned to their wallet.
- * Party A also has the ability to cancel their request provided it hasn't been accepted/rejected by party B.
- * The contract allows for multiple nfts to be involved in a single transaction.
- * Transactions involving a 1 to 1 nft swap are free.
+ * A Trustless tool for peer-to-peer NFT assets exchange.
  */
 contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
     constructor() {
