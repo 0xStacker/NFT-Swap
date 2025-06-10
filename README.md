@@ -44,9 +44,7 @@ different collection with or without added fungible tokens without caring about 
 
 ## 🗺 Roadmap
 
-- [ ] Offer based batering allowing multiple potential matchers of a public or targeted offer to present counter offers giving the creator the chance to select the best deal.
-
-- [ ] Allow the matcher for a direct offer to provide counter offer, leaving room for negotiation.
+- [ ] Offer based batering allowing matchers to present a counter proposal to the order creator, leaving room for negotiation.
 
 - [ ] ⛓⛏ Deploy on multiple evm chain
 
