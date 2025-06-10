@@ -19,17 +19,22 @@ abstract contract SworpUtils is ISworpErrors {
     // Order id counter.
     uint256 internal _nextOrderId;
 
-    // order market contains all the created orders
-    mapping(uint256 => PublicOrder) orderMarket;
-
     // pending pool contains all pending orders.
 
     uint256[] public orderPool;
 
+    // order market contains all the created orders
+    mapping(uint256 => PublicOrder) orderMarket;
+
+    // Keeps track of order index in pool for removal
     mapping(uint256 => uint256) internal _orderIndexTracker;
 
-    // User's approved addresses. Only adresses aproved by user can send nft swap requests.
+    // Supported ERC20 tokens
+    mapping(address => bool) private _supportedTokens;
+    address[] internal _supportedTokensReturnable;
+    
 
+    // User's approved addresses. Only adresses aproved by user can send nft swap requests.
     mapping(address => mapping(address => bool)) public approvedAddresses;
 
     // NOTICE: completed order status mean the order has been accepted, rejected or canceled.
@@ -131,6 +136,15 @@ abstract contract SworpUtils is ISworpErrors {
         _;
     }
 
+    /**
+     * @dev Add an ERC20 token to the list of tokens that can be used in orders.
+     */
+    function whitelistToken(address _token) external onlyAdmin{
+       _supportedTokens[_token] = true;
+       _supportedTokensReturnable.push(_token);
+    }
+
+
     /// @dev Checks if a given contract address supports the standard ERC721 interface
     function checkERC721InterfaceSupport(address _nft) internal view returns (bool) {
         try IERC721(_nft).supportsInterface(type(IERC721).interfaceId) returns (bool result) {
@@ -165,12 +179,6 @@ abstract contract SworpUtils is ISworpErrors {
         return _admin;
     }
 
-    // Admin fee withdrawal
-    function withdrawFees(address payable _fundsReceipieint, uint256 _amount) external onlyAdmin {
-        require(_amount <= address(this).balance, "Insufficient balance");
-        (bool success,) = _fundsReceipieint.call{value: _amount}("");
-        require(success, "Withdrawal failed");
-    }
 
     /**
      * @dev Prevent an address from sending a request
