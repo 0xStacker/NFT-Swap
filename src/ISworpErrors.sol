@@ -8,7 +8,7 @@ interface ISworpErrors {
     error Swapper__InvalidAddress();
     error Swapper__NotApproved(address requester);
     error Swapper__BadOrder();
-    error Swapper__ERC721LimitExceeded(uint limit);
+    error Swapper__ERC721LimitExceeded(uint256 limit);
     error Swapper__BadOrderMatch();
     error Swapper__InvalidMatcher(address matcher);
     error Swapper__NotAdmin(address user);

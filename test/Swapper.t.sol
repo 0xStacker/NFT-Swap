@@ -468,7 +468,7 @@ contract SwapTest is Test {
         _matchOrder(user2, ftAmount, orderId, matchData, true);
     }
 
-    function testCancelPublicOrder() public{
+    function testCancelPublicOrder() public {
         clearNftData();
         testRequestSwapNftToNft();
         vm.prank(user1);

@@ -64,7 +64,6 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
             revert Swapper__SelfOrder();
         }
 
-
         // Contract takes custody of the requester's nfts.
         for (uint256 i; i < _order.ownedNfts.length; i++) {
             Nft memory ownedNft = Nft({contractAddress: _order.ownedNfts[i], tokenId: _order.ownedNftIds[i]});
@@ -199,12 +198,12 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
         emit CancelSwapOrder(_order.requester, _orderId);
     }
 
-    /***
+    /**
+     *
      * @dev Handle orders involving fungible tokens
      * @notice defaults to eth if a token address is not set.
      */
     function _handleTokens(PublicOrder memory _order) internal {
-
         // Native token
         if (_order.requestedToken.contractAddress == address(0)) {
             if (msg.value < _order.requestedToken.amount) {
@@ -263,7 +262,8 @@ contract SworpV1 is Initializable, ReentrancyGuardUpgradeable, SworpUtils {
         }
     }
 
-    /***
+    /**
+     *
      * @dev verify that the assets provided by the matcher can beused
      */
     function _verifyMatchData(PublicOrder memory _order, Nft[] calldata _match) internal pure returns (bool) {

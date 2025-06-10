@@ -188,7 +188,7 @@ contract SwapTestERC20 is Test {
         hoax(user1, 1 ether);
         requestedToken.amount = _requestAmount;
         uint256 orderId = _requestSwap(user2, _ownedNfts, _requestedNfts, _ownedNftIds, offeringToken, requestedToken);
-        
+
         uint256 ftAmount = swapper.getOrder(orderId).requestedToken.amount;
         SworpV1.Nft[] memory matchData = new SworpV1.Nft[](matcherAmount);
         for (uint256 i; i < matcherAmount; i++) {
@@ -209,9 +209,11 @@ contract SwapTestERC20 is Test {
         assertEq(_requestedNftOwnerCheck, true);
     }
 
-    function testNftToFtSwapPublicOrderWithToken(uint256 creatorAmount, uint256 tokenAmount, uint256 _requestTokenAmount)
-        public
-    {
+    function testNftToFtSwapPublicOrderWithToken(
+        uint256 creatorAmount,
+        uint256 tokenAmount,
+        uint256 _requestTokenAmount
+    ) public {
         creatorAmount = bound(creatorAmount, 1, 5);
         uint256 matcherAmount = 0;
         assertLt(creatorAmount, 6);

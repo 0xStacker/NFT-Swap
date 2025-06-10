@@ -1,12 +1,13 @@
 //SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.6;
+
 import {ERC20} from "@openzeppelin/token/ERC20/ERC20.sol";
 
 contract TestToken is ERC20("TST", "TST") {
-// This is a test ERC20 token contract for minting purposes.
+    // This is a test ERC20 token contract for minting purposes.
 
-    function mint() external{
+    function mint() external {
         _mint(msg.sender, 1 ether);
-}
+    }
 }

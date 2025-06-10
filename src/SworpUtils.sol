@@ -32,7 +32,6 @@ abstract contract SworpUtils is ISworpErrors {
     // Supported ERC20 tokens
     mapping(address => bool) private _supportedTokens;
     address[] internal _supportedTokensReturnable;
-    
 
     // User's approved addresses. Only adresses aproved by user can send nft swap requests.
     mapping(address => mapping(address => bool)) public approvedAddresses;
@@ -64,7 +63,7 @@ abstract contract SworpUtils is ISworpErrors {
      * NFT => FT + NFT
      * NFT + FT => NFT + FT
      * NFT + FT => NFT
-     * 
+     *
      */
     struct PublicOrderParams {
         address fulfiller;
@@ -139,11 +138,10 @@ abstract contract SworpUtils is ISworpErrors {
     /**
      * @dev Add an ERC20 token to the list of tokens that can be used in orders.
      */
-    function whitelistToken(address _token) external onlyAdmin{
-       _supportedTokens[_token] = true;
-       _supportedTokensReturnable.push(_token);
+    function whitelistToken(address _token) external onlyAdmin {
+        _supportedTokens[_token] = true;
+        _supportedTokensReturnable.push(_token);
     }
-
 
     /// @dev Checks if a given contract address supports the standard ERC721 interface
     function checkERC721InterfaceSupport(address _nft) internal view returns (bool) {
@@ -178,7 +176,6 @@ abstract contract SworpUtils is ISworpErrors {
     function admin() external view returns (address) {
         return _admin;
     }
-
 
     /**
      * @dev Prevent an address from sending a request
