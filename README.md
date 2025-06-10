@@ -2,7 +2,7 @@
 ![Sworp Logo](./assets/sworp_logo.png)
 
 
-Peer-to-peer Nft asset exchanges on social media are often risky. Typically, it requires one party (usually the person that sends their asset first)to
+Peer-to-peer Nft asset exchanges with strangers pn the internet are often risky. Typically, it requires one party (usually the person that sends their asset first) to
 trust the other. An alternative is to use an offchain escrow, but this introduces another trust layer in which both parties would have to trust the escrow provider.
 
 ## 🛠 Solution
